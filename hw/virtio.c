@@ -361,6 +361,11 @@ int virtqueue_avail_bytes(VirtQueue *vq, int in_bytes, int out_bytes)
             max = vring_desc_len(desc_pa, i) / sizeof(VRingDesc);
             num_bufs = i = 0;
             desc_pa = vring_desc_addr(desc_pa, i);
+
+            if (max > VIRTQUEUE_MAX_SIZE) {
+                error_report("Too-large indirect descriptor");
+                exit(1);
+            }
         }
 
         do {
@@ -434,6 +439,11 @@ int virtqueue_pop(VirtQueue *vq, VirtQueueElement *elem)
         max = vring_desc_len(desc_pa, i) / sizeof(VRingDesc);
         desc_pa = vring_desc_addr(desc_pa, i);
         i = 0;
+
+        if (max > VIRTQUEUE_MAX_SIZE) {
+            error_report("Too-large indirect descriptor");
+            exit(1);
+        }
     }
 
     /* Collect all the descriptors */
