@@ -1,3 +1,199 @@
+qemu (1.2.0.dfsg-7) raring; urgency=low
+
+  * debian/control: remove libxen from build-deps
+  * install a 30-qemu-kvm.conf into /etc/sysctl.c for nr_hugepages.
+
+ -- Serge Hallyn <serge.hallyn@ubuntu.com>  Thu, 13 Dec 2012 10:20:40 -0600
+
+qemu (1.2.0.dfsg-6) raring; urgency=low
+
+  * qemu-kvm.upstart: need to call USE_HUGEPAGES 'env'.
+
+ -- Serge Hallyn <serge.hallyn@ubuntu.com>  Mon, 10 Dec 2012 12:57:02 -0600
+
+qemu (1.2.0.dfsg-5) raring; urgency=low
+
+  * rename qemu-kvm.conf to qemu-system.qemu-kvm.upstart.
+
+ -- Serge Hallyn <serge.hallyn@ubuntu.com>  Fri, 07 Dec 2012 14:26:14 -0600
+
+qemu (1.2.0.dfsg-4) raring; urgency=low
+
+  * Appease apt-get's dist-upgrade resolver by creating a qemu-common
+    transitional package to upgrade more gracefully to qemu-keymaps.
+  * Move all the empty transitional packages to the oldlibs section. 
+  * Remove pointless Breaks/Replaces between qemu-system and itself.
+  * Restore the versioned dep from qemu-kvm (and kvm) to qemu-system.
+
+ -- Adam Conrad <adconrad@ubuntu.com>  Fri, 07 Dec 2012 10:03:56 -0700
+
+qemu (1.2.0.dfsg-3) raring; urgency=low
+
+  * rename qemu-system.conf to be qemu-kvm.conf.  It reflects its
+    purpose (setting up kvm), and allows us to simply and cleanly
+    maintain user changes to older qemu-kvm's qemu-kvm.conf.
+  * remove version from qemu-kvm depend on qemu-system.
+
+ -- Serge Hallyn <serge.hallyn@ubuntu.com>  Fri, 07 Dec 2012 10:25:19 -0600
+
+qemu (1.2.0.dfsg-2) raring; urgency=low
+
+  * Fix the dpkg-maintscript-helper mv_confile line.
+
+ -- Serge Hallyn <serge.hallyn@ubuntu.com>  Thu, 06 Dec 2012 21:41:55 -0600
+
+qemu (1.2.0.dfsg-1) raring; urgency=low
+
+  * switch version to 1.2.0.dfsg-1 which is actually higher than 1.2.0+noroms
+    (thanks infinity)
+  * add mv_confile to qemu-system.preinst, postinst, and .postrm to rename
+    /etc/init/qemu-kvm.conf to qemu-system.conf
+
+ -- Serge Hallyn <serge.hallyn@ubuntu.com>  Thu, 06 Dec 2012 15:15:57 -0600
+
+qemu (1.2.0-z-dfsg-11) raring; urgency=low
+
+  * switch from <= last-bad-version to << first-good-version.
+
+ -- Serge Hallyn <serge.hallyn@ubuntu.com>  Thu, 06 Dec 2012 12:48:47 -0600
+
+qemu (1.2.0-z-dfsg-10) raring; urgency=low
+
+  * use Conflicts rather than Breaks.
+
+ -- Serge Hallyn <serge.hallyn@ubuntu.com>  Thu, 06 Dec 2012 10:50:41 -0600
+
+qemu (1.2.0-z-dfsg-9) raring; urgency=low
+
+  * make Recommends of qemu-utils versioned.
+  * have qemu-system Provides: qemu-kvm
+  * remove breaks/replaces on qemu-kvm, they'll come from qemu-system.
+
+ -- Serge Hallyn <serge.hallyn@ubuntu.com>  Thu, 06 Dec 2012 08:37:32 -0600
+
+qemu (1.2.0-z-dfsg-8) raring; urgency=low
+
+  * make breaks/replace be << not <=!
+
+ -- Serge Hallyn <serge.hallyn@ubuntu.com>  Thu, 06 Dec 2012 00:05:48 -0600
+
+qemu (1.2.0-z-dfsg-7) raring; urgency=low
+
+  * rules: fix typo - s/P/p.
+
+ -- Serge Hallyn <serge.hallyn@ubuntu.com>  Wed, 05 Dec 2012 22:21:32 -0600
+
+qemu (1.2.0-z-dfsg-6) raring; urgency=low
+
+  * debian/rules: add dh_installinit to get qemu-system.upstart installed.
+
+ -- Serge Hallyn <serge.hallyn@ubuntu.com>  Wed, 05 Dec 2012 14:22:04 -0600
+
+qemu (1.2.0-z-dfsg-5) raring; urgency=low
+
+  * Fix build break due to bad version specification.
+
+ -- Serge Hallyn <serge.hallyn@ubuntu.com>  Wed, 05 Dec 2012 10:08:41 -0600
+
+qemu (1.2.0-z-dfsg-4) raring; urgency=low
+
+  * Make qemu-system and qemu-kvm break/replace with older versions of
+    qemu-system, -common and -kvm.
+
+ -- Serge Hallyn <serge.hallyn@ubuntu.com>  Wed, 05 Dec 2012 08:05:30 -0600
+
+qemu (1.2.0-z-dfsg-3) raring; urgency=low
+
+  * qemu-kvm.{upstart,default}: support optional mounting of hugetlbfs under
+    /run/hugepages/kvm.
+  * debian/control: add breaks/replaces for qemu-keymaps against
+    qemu-common, and qemu-utils against qemu-kvm.  Remove it for
+    qemu-system against qemu-common since that depends on qemu-keymaps.
+
+ -- Serge Hallyn <serge.hallyn@ubuntu.com>  Tue, 04 Dec 2012 14:06:19 -0600
+
+qemu (1.2.0-z-dfsg-2) raring; urgency=low
+
+  * debian/control:
+    - remove vde2 suggest
+    - qemu-system: replace/break qemu-common which no longer exists.
+  * debian/patches: replace gridcentric with updated set, and re-apply.
+
+ -- Serge Hallyn <serge.hallyn@ubuntu.com>  Fri, 23 Nov 2012 09:54:02 -0600
+
+qemu (1.2.0-z-dfsg-1) raring; urgency=low
+
+  * bump version number to supersede old ubuntu packages.
+
+ -- Serge Hallyn <serge.hallyn@ubuntu.com>  Wed, 21 Nov 2012 14:33:17 -0600
+
+qemu (1.2.0+dfsg-1~exp1ubuntu6) raring; urgency=low
+
+  * Temporarily remove gridcentric patches to
+    - await a fix for s390 targets
+    - await a security review
+
+ -- Serge Hallyn <serge.hallyn@ubuntu.com>  Tue, 20 Nov 2012 22:26:57 -0600
+
+qemu (1.2.0+dfsg-1~exp1ubuntu5) raring; urgency=low
+
+  [ Serge Hallyn ]
+  * apply patches from git://git.linaro.org/qemu/qemu-linaro.git
+  * apply gridcentric patches from lp:~amscanne/+junk/gridcentric-qemu-patches
+  * qemu-system.postinst: trigger udev to change /dev/kvm perms
+  * debian/control:
+    - add udev to Depends for qemu-system
+    - add qemu-kvm and kvm virtual packages depending on qemu-kvm
+  * apply debian/patches/nbd-fixes-to-read-only-handling.patch from upstream to
+    make read-write mount after read-only mount work.  (LP: #1077838)
+
+  [ Robert Collins ]
+  * Fix upstart job to succeed if ksm settings can't be altered in the same way
+    other settings are handled. (LP: #1078530)
+
+ -- Serge Hallyn <serge.hallyn@ubuntu.com>  Tue, 20 Nov 2012 12:28:23 -0600
+
+qemu (1.2.0+dfsg-1~exp1ubuntu4) quantal; urgency=low
+
+  * fix dh_install for kvm-ifup/down in debian/rules
+  * add links for qemu-ifup/down in qemu-system.links
+  * remove (debian's original) qemu-ifup from qemu-system.install
+
+ -- Serge Hallyn <serge.hallyn@ubuntu.com>  Tue, 23 Oct 2012 12:06:23 -0500
+
+qemu (1.2.0+dfsg-1~exp1ubuntu3) quantal; urgency=low
+
+  * copy Ubuntu qemu-kvm's kvm-ifup/down into debian/
+
+ -- Serge Hallyn <serge.hallyn@ubuntu.com>  Tue, 23 Oct 2012 09:40:28 -0500
+
+qemu (1.2.0+dfsg-1~exp1ubuntu2) quantal; urgency=low
+
+  * debian/qemu-system.postinst
+    - always chgrp/chown /dev/kvm, since udev will have set them badly
+      at boot.
+    - make the 'qemu' symlink point to qemu-system-x86_64, not -i386.
+  * debian/qemu-system.links - point 'kvm' to qemu-system-x86_64
+  * add debian/qemu-system.upstart
+  * take the defaults from the old qemu-kvm.defaults, and move them into
+    the upstart job
+
+ -- Serge Hallyn <serge.hallyn@ubuntu.com>  Sat, 20 Oct 2012 16:29:12 -0500
+
+qemu (1.2.0+dfsg-1~exp1ubuntu1) quantal; urgency=low
+
+  * debian/control:
+    - remove libusbredir, libvdeplug2-dev, libspice-server-dev,
+      libspice-protocol-dev, libiscsi-dev
+    - remove openbios-ppc (>= 1.0+svn1060), openbios-sparc (>= 1.0+svn1060),
+      openhackware from qemu-system Depends.  Intend to add them back once
+      we can build them.
+  * qemu-system.links: remove symlinks which conflict with those from
+    kvm-ipxe.  This isn't ideal, of course - when things settle down,
+    we'll want all the symlinks to come from qemu-system, not kvm-ipxe.
+
+ -- Serge Hallyn <serge.hallyn@ubuntu.com>  Thu, 18 Oct 2012 23:43:10 -0500
+
 qemu (1.2.0+dfsg-1~exp1) UNRELEASED; urgency=low
 
   [ Michael Tokarev ]

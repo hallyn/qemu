@@ -327,8 +327,6 @@ static void serial_xmit(void *opaque)
             s->tsr = fifo_get(s,XMIT_FIFO);
             if (!s->xmit_fifo.count)
                 s->lsr |= UART_LSR_THRE;
-        } else if ((s->lsr & UART_LSR_THRE)) {
-            return;
         } else {
             s->tsr = s->thr;
             s->lsr |= UART_LSR_THRE;
@@ -340,7 +338,7 @@ static void serial_xmit(void *opaque)
         /* in loopback mode, say that we just received a char */
         serial_receive1(s, &s->tsr, 1);
     } else if (qemu_chr_fe_write(s->chr, &s->tsr, 1) != 1) {
-        if ((s->tsr_retry >= 0) && (s->tsr_retry <= MAX_XMIT_RETRY)) {
+        if ((s->tsr_retry > 0) && (s->tsr_retry <= MAX_XMIT_RETRY)) {
             s->tsr_retry++;
             qemu_mod_timer(s->transmit_timer,  new_xmit_ts + s->char_transmit_time);
             return;
@@ -434,10 +432,17 @@ static void serial_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             qemu_del_timer(s->fifo_timeout_timer);
             s->timeout_ipending=0;
             fifo_clear(s,RECV_FIFO);
+            if ((s->lsr & UART_LSR_DR)) {
+                s->lsr &= ~(UART_LSR_DR | UART_LSR_BI | UART_LSR_OE);
+                if (!(s->mcr & UART_MCR_LOOP)) {
+                    qemu_chr_accept_input(s->chr);
+                }
+            }
         }
 
         if (val & UART_FCR_XFR) {
             fifo_clear(s,XMIT_FIFO);
+            s->lsr |= UART_LSR_THRE;
         }
 
         if (val & UART_FCR_FE) {
@@ -754,6 +759,18 @@ static void serial_init_core(SerialState *s)
                           serial_event, s);
 }
 
+/* Get number of stored bytes in receive fifo. */
+unsigned serial_rx_fifo_count(SerialState *s)
+{
+    return s->recv_fifo.count;
+}
+
+/* Get number of stored bytes in transmit fifo. */
+unsigned serial_tx_fifo_count(SerialState *s)
+{
+    return s->xmit_fifo.count;
+}
+
 /* Change the main reference oscillator frequency. */
 void serial_set_frequency(SerialState *s, uint32_t frequency)
 {
@@ -879,12 +896,34 @@ SerialState *serial_mm_init(MemoryRegion *address_space,
     serial_init_core(s);
     vmstate_register(NULL, base, &vmstate_serial, s);
 
-    memory_region_init_io(&s->io, &serial_mm_ops[end], s,
-                          "serial", 8 << it_shift);
-    memory_region_add_subregion(address_space, base, &s->io);
+    if (address_space) {
+        memory_region_init_io(&s->io, &serial_mm_ops[end], s,
+                              "serial", 8 << it_shift);
+        memory_region_add_subregion(address_space, base, &s->io);
+    }
 
     serial_update_msl(s);
     return s;
+}
+
+void serial_change_char_driver(SerialState *s, CharDriverState *chr)
+{
+    /* TODO this is somewhat guesswork, and pretty ugly anyhow */
+    qemu_chr_add_handlers(s->chr, NULL, NULL, NULL, NULL);
+    s->chr = chr;
+    qemu_chr_add_handlers(s->chr, serial_can_receive1, serial_receive1,
+                          serial_event, s);
+    serial_update_msl(s);
+}
+
+const MemoryRegionOps *serial_get_memops(enum device_endian end)
+{
+    return &serial_mm_ops[end];
+}
+
+qemu_irq *serial_get_irq(SerialState *s)
+{
+    return &s->irq;
 }
 
 static Property serial_isa_properties[] = {
