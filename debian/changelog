@@ -1,7 +1,10 @@
-qemu (1.3.0+dfsg-1~exp3ubuntu1) raring; urgency=low
+qemu (1.3.0+dfsg-1~exp3ubuntu1~ppa1) raring; urgency=low
 
   * Merge 1.3.0+dfsg-1~exp3 from debian.
   * Remove hugepages sysctl file - qemu now supports transparent hugepages.
+  * Swap in update patches
+    - arm patches from qemu-linaro 2012.12.rebasing tree.
+  * Remaining ubuntu delta:
 
  -- Serge Hallyn <serge.hallyn@ubuntu.com>  Mon, 14 Jan 2013 23:22:51 -0600
 
