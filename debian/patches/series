@@ -67,3 +67,11 @@ patches-arm-1.3.0/0062-hw-omap_intc.c-Don-t-complain-about-nonexistent-regi.patc
 patches-arm-1.3.0/0063-hw-omap_gpio.c-Don-t-complain-about-some-writes-to-r.patch
 patches-arm-1.3.0/0064-onenand-Ignore-zero-writes-to-boot-command-space.patch
 patches-arm-1.3.0/0065-musb-add-dummy-support-for-ulpi-pass-through-registe.patch
+gridcentric/ram-from-file
+gridcentric/migrate-macs
+gridcentric/immediate-migration
+gridcentric/cpu-bug-workaround
+gridcentric/nbd-buffer-size
+gridcentric/cpuinfo-cr3
+gridcentric/save_pcram.patch
+gridcentric/silent_stop.patch
