@@ -1,3 +1,10 @@
+qemu (1.3.0+dfsg-1~exp3ubuntu1~ppa5) raring; urgency=low
+
+  * Copy kvm-ifup and kvm-ifdown from debian's qemu-kvm
+  * Remove TAPBR from qemu-kvm.conf.
+
+ -- Serge Hallyn <serge.hallyn@ubuntu.com>  Wed, 16 Jan 2013 22:32:52 -0600
+
 qemu (1.3.0+dfsg-1~exp3ubuntu1~ppa4) raring; urgency=low
 
   * Make sure /dev/kvm gets its acls cleared:
