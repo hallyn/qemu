@@ -1,3 +1,9 @@
+qemu (1.3.0+dfsg-1~exp3ubuntu1~ppa7) raring; urgency=low
+
+  * Add note about kvm to qemu-system.README.debian.
+
+ -- Serge Hallyn <serge.hallyn@ubuntu.com>  Thu, 17 Jan 2013 16:55:23 -0600
+
 qemu (1.3.0+dfsg-1~exp3ubuntu1~ppa6) raring; urgency=low
 
   * Add new set of gridcentric patches (for 1.3.0) from
