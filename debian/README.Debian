@@ -1,0 +1,8 @@
+KVM command line
+================
+
+As of Ubuntu raring (13.04), qemu-kvm is now built from the qemu sources.
+While behavior is mostly the same, there are a few observable differences.
+In particular:
+
+  * -enable-kvm is not implied.
