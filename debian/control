@@ -299,7 +299,7 @@ Replaces:
   qemu-system (<< 1.3.0+dfsg-5),
   qemu-kvm (<< 1.2.0.dfsg-1),
   kvm
-Recommends: qemu-utils
+Recommends: qemu-utils, cpu-checker
 Suggests: samba
 Description: QEMU full system emulation binaries (x86)
  QEMU is a fast processor emulator: currently the package supports
