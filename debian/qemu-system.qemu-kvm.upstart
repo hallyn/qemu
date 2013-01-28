@@ -67,13 +67,3 @@ pre-start script
 		fi
 	fi
 end script
-
-post-stop script
-	# Unload the modules
-	if grep -qs "^flags.* vmx" /proc/cpuinfo; then
-		modprobe -r kvm_intel || true
-	elif grep -qs "^flags.* svm" /proc/cpuinfo; then
-		modprobe -r kvm_amd || true
-	fi
-	modprobe -r vhost_net || true
-end script
