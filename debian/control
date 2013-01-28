@@ -146,6 +146,7 @@ Breaks:
 # iproute before 20110315 were unable to deal with bridge (set master device)
   iproute (<< 20110315-1)
 Replaces:
+  qemu (<< 1.3.0+dfsg-5),
   qemu-system (<< 1.3.0+dfsg-5),
   qemu-common (<< 1.2.0.dfsg-1),
   qemu-utils (<< 1.3.0+dfsg-4),
