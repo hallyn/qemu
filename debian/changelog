@@ -71,6 +71,7 @@ qemu (1.3.0+dfsg-5expubuntu1) raring; urgency=low
   * add replaces to qemu-system-common for qemu - we briefly moved conflicting
     docs to qemu, which debian moved to qemu-system-common.  This can be
     dropped after raring.
+  * move qemu-kvm.upstart from qemu-system to qemu-system-x86.
 
  -- Serge Hallyn <serge.hallyn@ubuntu.com>  Thu, 07 Feb 2013 14:15:26 -0600
 
