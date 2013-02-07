@@ -68,7 +68,7 @@ enable-xen	amd64|i386
 # should we enable spice on more arches?
 #enable-spice	amd64|i386
 
-#enable-rbd	# rbd isn't enabled yet
+enable-rbd	# rbd isn't enabled yet
 #enable-smartcard-nss	# requires libnss3-dev and libtool
 #enable-usb-redir	linux
 #enable-seccomp		# XXX todo

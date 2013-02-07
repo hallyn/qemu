@@ -65,6 +65,7 @@ Build-Depends: debhelper (>= 9),
  xfslibs-dev [linux-any],
 # always needed
  zlib1g-dev,
+ librados-dev, librbd-dev,
 Build-Conflicts: oss4-dev
 Standards-Version: 3.9.3
 Homepage: http://www.qemu.org/
