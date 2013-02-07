@@ -195,8 +195,16 @@ Multi-Arch: foreign
 Depends: ${shlibs:Depends}, ${misc:Depends},
  qemu-system-common (>= ${source:Version}), qemu-keymaps (>= ${source:Version}),
 Provides: ${sysprovides:arm}, qemu-kvm, kvm
-Breaks: qemu-system (<< 1.3.0+dfsg-5)
-Replaces: qemu-system (<< 1.3.0+dfsg-5)
+Breaks:
+  qemu-common (<< 1.3.0+dfsg-5),
+  qemu-system (<< 1.3.0+dfsg-5),
+  qemu-kvm (<< 1.2.0.dfsg-1),
+  kvm
+Replaces:
+  qemu-common (<< 1.3.0+dfsg-5),
+  qemu-system (<< 1.3.0+dfsg-5),
+  qemu-kvm (<< 1.2.0.dfsg-1),
+  kvm
 Recommends: qemu-utils
 Suggests: samba
 Description: QEMU full system emulation binaries (arm)
@@ -241,8 +249,16 @@ Multi-Arch: foreign
 Depends: ${shlibs:Depends}, ${misc:Depends},
  qemu-system-common (>= ${source:Version}), qemu-keymaps (>= ${source:Version})
 Provides: ${sysprovides:ppc}, qemu-kvm, kvm
-Breaks: qemu-system (<< 1.3.0+dfsg-5), qemu-kvm (<< 1.2.0.dfsg-1), qemu-common (<< 1.2.0.dfsg-1)
-Replaces: qemu-system (<< 1.3.0+dfsg-5), qemu-kvm (<< 1.2.0.dfsg-1), qemu-common (<< 1.2.0.dfsg-1)
+Breaks:
+  qemu-common (<< 1.3.0+dfsg-5),
+  qemu-system (<< 1.3.0+dfsg-5),
+  qemu-kvm (<< 1.2.0.dfsg-1),
+  kvm
+Replaces:
+  qemu-common (<< 1.3.0+dfsg-5),
+  qemu-system (<< 1.3.0+dfsg-5),
+  qemu-kvm (<< 1.2.0.dfsg-1),
+  kvm
 Recommends: qemu-utils
 Suggests: samba
 Description: QEMU full system emulation binaries (ppc)
@@ -264,8 +280,16 @@ Multi-Arch: foreign
 Depends: ${shlibs:Depends}, ${misc:Depends},
  qemu-system-common (>= ${source:Version}), qemu-keymaps (>= ${source:Version})
 Provides: ${sysprovides:sparc}, qemu-kvm, kvm
-Breaks: qemu-system (<< 1.3.0+dfsg-5)
-Replaces: qemu-system (<< 1.3.0+dfsg-5)
+Breaks:
+  qemu-common (<< 1.3.0+dfsg-5),
+  qemu-system (<< 1.3.0+dfsg-5),
+  qemu-kvm (<< 1.2.0.dfsg-1),
+  kvm
+Replaces:
+  qemu-common (<< 1.3.0+dfsg-5),
+  qemu-system (<< 1.3.0+dfsg-5),
+  qemu-kvm (<< 1.2.0.dfsg-1),
+  kvm
 Recommends: qemu-utils
 Suggests: samba
 Description: QEMU full system emulation binaries (sparc)

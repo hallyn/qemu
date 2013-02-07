@@ -1,28 +1,6 @@
 qemu (1.3.0+dfsg-5expubuntu1) raring; urgency=low
 
   * Merge 1.3.0+dfsg-5exp from Debian.
-  * remaining changes from after 1.3.0+dfsg-1~exp3ubuntu1:
-    - qemu-system-common.links: add link for OVMF
-    - Add qemu-utils.links for kvm-img and kvm-nbd utils and manpages.
-    - qemu-system.links:
-      * Add link to usr/share/ovmf/OVMF.fd
-      * Fix target of /etc/kvm/kvm-if{up,down} links
-    - debian/control: qemu-system should Recommend cpu-checker
-    - configure-opts: add audio-cards list
-    - configure-opts: change order of audio-drv-list for ubuntu, putting pa
-      first.
-    - Add qemu-kvm breaks/replaces to qemu-user, to handle conflict over
-      (i.e.) qemu-x86_64.
-    - add qemu-kvm, and qemu-common transitional packages.
-    - Add breaks/replaces to qemu-keymaps for qemu-system.
-    - Add provides: qemu-kvm and kvm to qemu-system-ppc.
-    - Add breaks/replaces to qemu-system-ppc for qemu-kvm and qemu-common.
-    - Add breaks/replaces to qemu-kvm for qemu-common.
-    - Add breaks/replaces to qemu-utils for qemu-user and qemu-kvm.
-    - Add armhf, armel, powerpc and sparc arches to qemu-kvm transitional
-      package.
-    - Add qemu-common package.
-    - Add Provides: qemu-kvm, kvm to qemu-system-{arm,ppc,sparc,x86}
   * remaining changes from 1.3.0+dfsg-1~exp3ubuntu1:
     - debian/control:
       * update maintainer
@@ -51,27 +29,39 @@ qemu (1.3.0+dfsg-5expubuntu1) raring; urgency=low
       - remove pxe-virtio, pxe-e1000 and pxe-rtl8139 links (which conflict
         with ones from kvm-ipxe).  We may want to move the links from kvm-ipxe
         back to qemu-system at some point.
-  * Add note about kvm to qemu-system.README.debian.
-  * Copy kvm-ifup and kvm-ifdown from debian's qemu-kvm
-  * Remove TAPBR from qemu-kvm.conf.
-  * Make sure /dev/kvm gets its acls cleared:
-    - Add acl to qemu-system.depends
-    - update qemu-system.udev to run setfacl to set g::rw acl
-  * qemu-system.qemu-kvm.conf: don't rmmod at stop
-  * Remove vnc-jpeg, libiscsi-dev, and vde from debian/configure-opts
-
-  * dropped
-    * debian/patches/CVE-2012-6075.patch: Fix guest denial of service and
-      possible code execution in hw/e1000.c by dropping oversize packets.
-      (duplicate of
-      debian/patches/e1000-discard-oversize-packets-based-on-SBP_LPE.patch)
-
+  * remaining changes from after 1.3.0+dfsg-1~exp3ubuntu1:
+    - qemu-system-common.links: add link for OVMF
+    - Add qemu-utils.links for kvm-img and kvm-nbd utils and manpages.
+    - qemu-system.links:
+      * Add link to usr/share/ovmf/OVMF.fd
+      * Fix target of /etc/kvm/kvm-if{up,down} links
+    - debian/control: qemu-system should Recommend cpu-checker
+    - Add qemu-kvm breaks/replaces to qemu-user, to handle conflict over
+      (i.e.) qemu-x86_64.
+    - add qemu-kvm, and qemu-common transitional packages.
+    - Add breaks/replaces to qemu-keymaps for qemu-system.
+    - Add provides: qemu-kvm and kvm to qemu-system-ppc.
+    - Add breaks/replaces to qemu-system-ppc for qemu-kvm and qemu-common.
+    - Add breaks/replaces to qemu-kvm for qemu-common.
+    - Add breaks/replaces to qemu-utils for qemu-user and qemu-kvm.
+    - Add armhf, armel, powerpc and sparc arches to qemu-kvm transitional
+      package.
+    - Add qemu-common package.
+    - Make sure /dev/kvm gets its acls cleared:
+      * Add acl to qemu-system.depends
+      * update qemu-system.udev to run setfacl to set g::rw acl
+    - Remove vnc-jpeg, libiscsi-dev, and vde from debian/configure-opts
+  * dropped debian/patches/CVE-2012-6075.patch (duplicate of
+    e1000-discard-oversize-packets-based-on-SBP_LPE.patch)
   * debian/{control,configure-opts}: enable rbd (LP: #1118406)
   * add symlink for kvm.1 -> qemu.1 manpage (LP: #1117636)
   * add replaces to qemu-system-common for qemu - we briefly moved conflicting
     docs to qemu, which debian moved to qemu-system-common.  This can be
     dropped after raring.
   * move qemu-kvm.upstart from qemu-system to qemu-system-x86.
+  * Support upgrade from qemu-kvm on non-x86 arches:
+    - Add Provides: qemu-kvm, kvm to qemu-system-{arm,ppc,sparc,x86}
+    - Add Breaks/Replaces for qemu-{common,system,kvm} and kvm.
 
  -- Serge Hallyn <serge.hallyn@ubuntu.com>  Thu, 07 Feb 2013 14:15:26 -0600
 
