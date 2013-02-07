@@ -6,8 +6,7 @@ qemu (1.3.0+dfsg-5expubuntu1) raring; urgency=low
       * update maintainer
       * remove vde2 recommends
       * build-deps: remove libusbredir, libvdeplug2-dev,
-        libspice-server-dev, libspice-protocol-dev, libiscsi-dev,
-        and libxen-dev.
+        libspice-server-dev, libspice-protocol-dev, libiscsi-dev
       * qemu-system:
         - break/replace qemu-common
         - depend on udev
