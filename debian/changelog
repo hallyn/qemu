@@ -18,10 +18,11 @@ qemu (1.3.0+dfsg-5expubuntu1) raring; urgency=low
     - Add provides: qemu-kvm and kvm to qemu-system-ppc.
     - Add breaks/replaces to qemu-system-ppc for qemu-kvm and qemu-common.
     - Add breaks/replaces to qemu-kvm for qemu-common.
-    - Add breaks/replaces to qemu-tils for qemu-user and qemu-kvm.
+    - Add breaks/replaces to qemu-utils for qemu-user and qemu-kvm.
     - Add armhf, armel, powerpc and sparc arches to qemu-kvm transitional
       package.
     - Add qemu-common package.
+    - Add Provides: qemu-kvm, kvm to qemu-system-{arm,ppc,sparc,x86}
   * remaining changes from 1.3.0+dfsg-1~exp3ubuntu1:
     - debian/control:
       * update maintainer
@@ -29,15 +30,12 @@ qemu (1.3.0+dfsg-5expubuntu1) raring; urgency=low
       * build-deps: remove libusbredir, libvdeplug2-dev,
         libspice-server-dev, libspice-protocol-dev, libiscsi-dev,
         and libxen-dev.
-      * qemu-keymaps: break/replace qemu-common
       * qemu-system:
         - break/replace qemu-common
         - depend on udev
         - remove openbios-ppc, openbios-sparc, and openhackware from
           Depends.  (Intend to add them back once we can build them.)
-        - provides: qemu-kvm
       * qemu-utils: break/replace qemu-kvm
-      * set up transitional packages for qemu-kvm, qemu-common, and kvm.
     - qemu-kvm.upstart:
       - add qemu-system.qemu-kvm.upstart
       - debian/rules: add dh_installinit to get qemu-system.upstart installed.
