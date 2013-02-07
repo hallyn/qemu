@@ -402,13 +402,3 @@ Description: dummy transitional package from qemu-common to qemu-keymaps
  This transitional package helps users transition from the qemu-common package
  to the qemu-keymaps package.  Once this package and its dependencies are
  installed you can safely remove it.
-
-Package: qemu-doc
-Architecture: all
-Section: doc
-Description: dummy transitional package from qemu-common to qemu-keymaps
- This transitional package helps users transition from the qemu-common package
- to the qemu-keymaps package.  Once this package and its dependencies are
- installed you can safely remove it.
- .
- This package installs the documentation for qemu-system and qemu-user.
