@@ -1,3 +1,9 @@
+qemu (1.3.0+dfsg-5expubuntu2) raring; urgency=low
+
+  * Enable spice.
+
+ -- Serge Hallyn <serge.hallyn@ubuntu.com>  Tue, 12 Feb 2013 16:07:04 -0600
+
 qemu (1.3.0+dfsg-5expubuntu1) raring; urgency=low
 
   [ Serge Hallyn ]
