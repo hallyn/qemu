@@ -24,4 +24,9 @@ then
   chmod 0660 /dev/kvm
 fi
 
+# udev rules for /dev/kvm have changed, so have udev
+# recalculate:
+
+udevadm trigger --subsystem-match=misc --action=change
+
 exit 0
