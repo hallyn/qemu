@@ -74,3 +74,4 @@ gridcentric/nbd-buffer-size
 gridcentric/cpuinfo-cr3
 gridcentric/save_pcram.patch
 gridcentric/silent_stop.patch
+expose-vmx_qemu64cpu.patch
