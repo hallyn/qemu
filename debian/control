@@ -418,7 +418,7 @@ Description: QEMU Full virtualization on x86 hardware (transitional package)
 
 Package: qemu-common
 Architecture: all
-Depends: qemu-keymaps
+Depends: ${misc:Depends}, qemu-keymaps
 Section: oldlibs
 Description: dummy transitional package from qemu-common to qemu-keymaps
  This transitional package helps users transition from the qemu-common package
