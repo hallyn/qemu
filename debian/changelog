@@ -12,6 +12,7 @@ qemu (1.4.0+dfsg-1exp) experimental; urgency=low
   * change Vcs fields to point to anonscm.debian.org (lintian)
   * add a check for (lxc) container to qemu-system-x86 initscript
   * fix distribution field in last qemu-system.NEWS entry
+  * bump Standards-Version to 3.9.4 (no changes needed)
 
   [ Steve Langasek ]
   * Pass --enable-uname-release=2.6.32 for the user emulation builds, so that
