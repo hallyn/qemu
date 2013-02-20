@@ -31,6 +31,9 @@ udevadm trigger --subsystem-match=misc --action=change
 
 # remove group::--- acl mistakenly placed on /dev/kvm by udev-acl
 # if a user logged in before our kvm rule was installed.
-/usr/bin/setfacl -m g::rw /dev/kvm
+if [ -c /dev/kvm -a ! -L /dev/kvm ]
+then
+  /usr/bin/setfacl -m g::rw /dev/kvm
+fi
 
 exit 0
