@@ -1,4 +1,4 @@
-qemu (1.4.0+dfsg-1expubuntu1) UNRELEASED; urgency=low
+qemu (1.4.0+dfsg-1expubuntu1) raring; urgency=low
 
   * Merge 1.4.0+dfsg-1exp from debian.  Remaining changes:
     - debian/control:
