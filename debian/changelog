@@ -31,6 +31,7 @@ qemu (1.4.0+dfsg-1expubuntu1) UNRELEASED; urgency=low
     - Add linaro arm patches.
     - Add gridcentric patches.
     - Re-add expose_vms_qemu64cpu.patch (from Daviey)
+  * Add 0001-fix-wrong-output-with-info-chardev-for-tcp-socket.patch
 
  -- Serge Hallyn <serge.hallyn@ubuntu.com>  Wed, 20 Feb 2013 11:58:27 -0600
 

@@ -68,3 +68,4 @@ patches-arm-1.3.0/0065-musb-add-dummy-support-for-ulpi-pass-through-registe.patc
 expose-vmx_qemu64cpu.patch
 gridcentric/ramblock-filename
 gridcentric/silent_stop.patch
+0001-fix-wrong-output-with-info-chardev-for-tcp-socket.patch
