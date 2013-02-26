@@ -69,3 +69,4 @@ expose-vmx_qemu64cpu.patch
 gridcentric/ramblock-filename
 gridcentric/silent_stop.patch
 0001-fix-wrong-output-with-info-chardev-for-tcp-socket.patch
+FUTEX_WAIT_BITSET.patch
