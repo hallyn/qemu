@@ -146,6 +146,8 @@ Architecture: amd64 arm armel armhf hppa i386 ia64 kfreebsd-amd64 kfreebsd-i386 
 Multi-Arch: foreign
 Depends: ${misc:Depends}, ${shlibs:Depends}, udev, acl
 Breaks:
+# qemu-common is ubuntu package
+  qemu-common (<< 1.2.0.dfsg-1),
 # qemu-system before qemu-system-split
   qemu-system (<< 1.3.0+dfsg-5),
 # qemu-utils had virtfs-proxy-helper
@@ -154,6 +156,7 @@ Breaks:
   iproute (<< 20110315-1)
 Replaces:
   qemu (<< 1.3.0+dfsg-5),
+  qemu-common (<< 1.2.0.dfsg-1),
   qemu-system (<< 1.3.0+dfsg-5),
   qemu-utils (<< 1.3.0+dfsg-4),
 Description: QEMU full system emulation binaries (common files)
