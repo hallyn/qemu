@@ -1,3 +1,9 @@
+qemu (1.4.0+dfsg-1expubuntu2~ppa4) raring; urgency=low
+
+  * don't apply FUTEX_WAIT_BITSET.patch - doesn't seem to help.
+
+ -- Serge Hallyn <serge.hallyn@ubuntu.com>  Wed, 27 Feb 2013 08:19:54 -0600
+
 qemu (1.4.0+dfsg-1expubuntu2~ppa3) raring; urgency=low
 
   * substitute (apparently identical) patches from 1.4.0 qemu-linaro rebasing
