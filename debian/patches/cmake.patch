@@ -1,0 +1,53 @@
+Index: qemu/linux-user/syscall.c
+===================================================================
+--- qemu.orig/linux-user/syscall.c	2013-02-26 16:14:47.000000000 -0600
++++ qemu/linux-user/syscall.c	2013-03-05 11:11:04.134269421 -0600
+@@ -1115,11 +1115,15 @@ static abi_long do_select(int n,
+                           abi_ulong rfd_addr, abi_ulong wfd_addr,
+                           abi_ulong efd_addr, abi_ulong target_tv_addr)
+ {
++    TaskState *ts = (TaskState *)thread_env->opaque;
+     fd_set rfds, wfds, efds;
+     fd_set *rfds_ptr, *wfds_ptr, *efds_ptr;
+-    struct timeval tv, *tv_ptr;
++    struct timeval tv, tv2, *tv_ptr;
+     abi_long ret;
+ 
++    tv2.tv_sec = 0;
++    tv2.tv_usec = 0;
++
+     ret = copy_from_user_fdset_ptr(&rfds, &rfds_ptr, rfd_addr, n);
+     if (ret) {
+         return ret;
+@@ -1141,7 +1145,10 @@ static abi_long do_select(int n,
+         tv_ptr = NULL;
+     }
+ 
+-    ret = get_errno(select(n, rfds_ptr, wfds_ptr, efds_ptr, tv_ptr));
++    if (ts->signal_pending) 
++        ret = get_errno(select(n, rfds_ptr, wfds_ptr, efds_ptr, &tv2));
++    else
++        ret = get_errno(select(n, rfds_ptr, wfds_ptr, efds_ptr, tv_ptr));
+ 
+     if (!is_error(ret)) {
+         if (rfd_addr && copy_to_user_fdset(rfd_addr, &rfds, n))
+@@ -7208,6 +7215,7 @@ abi_long do_syscall(void *cpu_env, int n
+     case TARGET_NR_ppoll:
+ # endif
+         {
++            TaskState *ts = (TaskState *)thread_env->opaque;
+             struct target_pollfd *target_pfd;
+             unsigned int nfds = arg2;
+             int timeout = arg3;
+@@ -7260,7 +7268,10 @@ abi_long do_syscall(void *cpu_env, int n
+                 }
+             } else
+ # endif
+-                ret = get_errno(poll(pfd, nfds, timeout));
++                if (ts->signal_pending) 
++                    ret = get_errno(poll(pfd, nfds, 0));
++                else
++                    ret = get_errno(poll(pfd, nfds, timeout));
+ 
+             if (!is_error(ret)) {
+                 for(i = 0; i < nfds; i++) {

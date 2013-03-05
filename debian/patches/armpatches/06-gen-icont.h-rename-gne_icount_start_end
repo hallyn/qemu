@@ -1,0 +1,366 @@
+commit 806f352d3d6f7b326b0ab3a49c622b124459dc8d
+Author: Peter Maydell <peter.maydell@linaro.org>
+Date:   Fri Feb 22 18:10:05 2013 +0000
+
+    gen-icount.h: Rename gen_icount_start/end to gen_tb_start/end
+    
+    The gen_icount_start/end functions are now somewhat misnamed since they
+    are useful for generic "start/end of TB" code, used for more than just
+    icount. Rename them to gen_tb_start/end.
+    
+    Signed-off-by: Peter Maydell <peter.maydell@linaro.org>
+    Reviewed-by: Richard Henderson <rth@twiddle.net>
+    Signed-off-by: Blue Swirl <blauwirbel@gmail.com>
+
+Index: qemu/include/exec/gen-icount.h
+===================================================================
+--- qemu.orig/include/exec/gen-icount.h	2013-03-05 11:09:31.010270998 -0600
++++ qemu/include/exec/gen-icount.h	2013-03-05 11:09:30.966270998 -0600
+@@ -9,7 +9,7 @@ static TCGArg *icount_arg;
+ static int icount_label;
+ static int exitreq_label;
+ 
+-static inline void gen_icount_start(void)
++static inline void gen_tb_start(void)
+ {
+     TCGv_i32 count;
+     TCGv_i32 flag;
+@@ -36,7 +36,7 @@ static inline void gen_icount_start(void
+     tcg_temp_free_i32(count);
+ }
+ 
+-static void gen_icount_end(TranslationBlock *tb, int num_insns)
++static void gen_tb_end(TranslationBlock *tb, int num_insns)
+ {
+     gen_set_label(exitreq_label);
+     tcg_gen_exit_tb((tcg_target_long)tb + TB_EXIT_REQUESTED);
+Index: qemu/target-alpha/translate.c
+===================================================================
+--- qemu.orig/target-alpha/translate.c	2013-03-05 11:09:31.010270998 -0600
++++ qemu/target-alpha/translate.c	2013-03-05 11:09:30.966270998 -0600
+@@ -3395,7 +3395,7 @@ static inline void gen_intermediate_code
+     if (max_insns == 0)
+         max_insns = CF_COUNT_MASK;
+ 
+-    gen_icount_start();
++    gen_tb_start();
+     do {
+         if (unlikely(!QTAILQ_EMPTY(&env->breakpoints))) {
+             QTAILQ_FOREACH(bp, &env->breakpoints, entry) {
+@@ -3462,7 +3462,7 @@ static inline void gen_intermediate_code
+         abort();
+     }
+ 
+-    gen_icount_end(tb, num_insns);
++    gen_tb_end(tb, num_insns);
+     *tcg_ctx.gen_opc_ptr = INDEX_op_end;
+     if (search_pc) {
+         j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
+Index: qemu/target-arm/translate.c
+===================================================================
+--- qemu.orig/target-arm/translate.c	2013-03-05 11:09:31.010270998 -0600
++++ qemu/target-arm/translate.c	2013-03-05 11:09:30.974270998 -0600
+@@ -9781,7 +9781,7 @@ static inline void gen_intermediate_code
+     if (max_insns == 0)
+         max_insns = CF_COUNT_MASK;
+ 
+-    gen_icount_start();
++    gen_tb_start();
+ 
+     tcg_clear_temp_count();
+ 
+@@ -9991,7 +9991,7 @@ static inline void gen_intermediate_code
+     }
+ 
+ done_generating:
+-    gen_icount_end(tb, num_insns);
++    gen_tb_end(tb, num_insns);
+     *tcg_ctx.gen_opc_ptr = INDEX_op_end;
+ 
+ #ifdef DEBUG_DISAS
+Index: qemu/target-cris/translate.c
+===================================================================
+--- qemu.orig/target-cris/translate.c	2013-03-05 11:09:31.010270998 -0600
++++ qemu/target-cris/translate.c	2013-03-05 11:09:30.974270998 -0600
+@@ -3292,7 +3292,7 @@ gen_intermediate_code_internal(CPUCRISSt
+         max_insns = CF_COUNT_MASK;
+     }
+ 
+-    gen_icount_start();
++    gen_tb_start();
+     do {
+         check_breakpoint(env, dc);
+ 
+@@ -3433,7 +3433,7 @@ gen_intermediate_code_internal(CPUCRISSt
+             break;
+         }
+     }
+-    gen_icount_end(tb, num_insns);
++    gen_tb_end(tb, num_insns);
+     *tcg_ctx.gen_opc_ptr = INDEX_op_end;
+     if (search_pc) {
+         j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
+Index: qemu/target-i386/translate.c
+===================================================================
+--- qemu.orig/target-i386/translate.c	2013-03-05 11:09:31.010270998 -0600
++++ qemu/target-i386/translate.c	2013-03-05 11:09:30.978270998 -0600
+@@ -7972,7 +7972,7 @@ static inline void gen_intermediate_code
+     if (max_insns == 0)
+         max_insns = CF_COUNT_MASK;
+ 
+-    gen_icount_start();
++    gen_tb_start();
+     for(;;) {
+         if (unlikely(!QTAILQ_EMPTY(&env->breakpoints))) {
+             QTAILQ_FOREACH(bp, &env->breakpoints, entry) {
+@@ -8030,7 +8030,7 @@ static inline void gen_intermediate_code
+     }
+     if (tb->cflags & CF_LAST_IO)
+         gen_io_end();
+-    gen_icount_end(tb, num_insns);
++    gen_tb_end(tb, num_insns);
+     *tcg_ctx.gen_opc_ptr = INDEX_op_end;
+     /* we don't forget to fill the last values */
+     if (search_pc) {
+Index: qemu/target-lm32/translate.c
+===================================================================
+--- qemu.orig/target-lm32/translate.c	2013-03-05 11:09:31.010270998 -0600
++++ qemu/target-lm32/translate.c	2013-03-05 11:09:30.982270998 -0600
+@@ -1042,7 +1042,7 @@ static void gen_intermediate_code_intern
+         max_insns = CF_COUNT_MASK;
+     }
+ 
+-    gen_icount_start();
++    gen_tb_start();
+     do {
+         check_breakpoint(env, dc);
+ 
+@@ -1104,7 +1104,7 @@ static void gen_intermediate_code_intern
+         }
+     }
+ 
+-    gen_icount_end(tb, num_insns);
++    gen_tb_end(tb, num_insns);
+     *tcg_ctx.gen_opc_ptr = INDEX_op_end;
+     if (search_pc) {
+         j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
+Index: qemu/target-m68k/translate.c
+===================================================================
+--- qemu.orig/target-m68k/translate.c	2013-03-05 11:09:31.010270998 -0600
++++ qemu/target-m68k/translate.c	2013-03-05 11:09:30.982270998 -0600
+@@ -2999,7 +2999,7 @@ gen_intermediate_code_internal(CPUM68KSt
+     if (max_insns == 0)
+         max_insns = CF_COUNT_MASK;
+ 
+-    gen_icount_start();
++    gen_tb_start();
+     do {
+         pc_offset = dc->pc - pc_start;
+         gen_throws_exception = NULL;
+@@ -3063,7 +3063,7 @@ gen_intermediate_code_internal(CPUM68KSt
+             break;
+         }
+     }
+-    gen_icount_end(tb, num_insns);
++    gen_tb_end(tb, num_insns);
+     *tcg_ctx.gen_opc_ptr = INDEX_op_end;
+ 
+ #ifdef DEBUG_DISAS
+Index: qemu/target-microblaze/translate.c
+===================================================================
+--- qemu.orig/target-microblaze/translate.c	2013-03-05 11:09:31.010270998 -0600
++++ qemu/target-microblaze/translate.c	2013-03-05 11:09:30.982270998 -0600
+@@ -1772,7 +1772,7 @@ gen_intermediate_code_internal(CPUMBStat
+     if (max_insns == 0)
+         max_insns = CF_COUNT_MASK;
+ 
+-    gen_icount_start();
++    gen_tb_start();
+     do
+     {
+ #if SIM_COMPAT
+@@ -1896,7 +1896,7 @@ gen_intermediate_code_internal(CPUMBStat
+                 break;
+         }
+     }
+-    gen_icount_end(tb, num_insns);
++    gen_tb_end(tb, num_insns);
+     *tcg_ctx.gen_opc_ptr = INDEX_op_end;
+     if (search_pc) {
+         j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
+Index: qemu/target-mips/translate.c
+===================================================================
+--- qemu.orig/target-mips/translate.c	2013-03-05 11:09:31.010270998 -0600
++++ qemu/target-mips/translate.c	2013-03-05 11:09:30.990270998 -0600
+@@ -15604,7 +15604,7 @@ gen_intermediate_code_internal (CPUMIPSS
+     if (max_insns == 0)
+         max_insns = CF_COUNT_MASK;
+     LOG_DISAS("\ntb %p idx %d hflags %04x\n", tb, ctx.mem_idx, ctx.hflags);
+-    gen_icount_start();
++    gen_tb_start();
+     while (ctx.bstate == BS_NONE) {
+         if (unlikely(!QTAILQ_EMPTY(&env->breakpoints))) {
+             QTAILQ_FOREACH(bp, &env->breakpoints, entry) {
+@@ -15702,7 +15702,7 @@ gen_intermediate_code_internal (CPUMIPSS
+         }
+     }
+ done_generating:
+-    gen_icount_end(tb, num_insns);
++    gen_tb_end(tb, num_insns);
+     *tcg_ctx.gen_opc_ptr = INDEX_op_end;
+     if (search_pc) {
+         j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
+Index: qemu/target-openrisc/translate.c
+===================================================================
+--- qemu.orig/target-openrisc/translate.c	2013-03-05 11:09:31.010270998 -0600
++++ qemu/target-openrisc/translate.c	2013-03-05 11:09:30.990270998 -0600
+@@ -1698,7 +1698,7 @@ static inline void gen_intermediate_code
+         max_insns = CF_COUNT_MASK;
+     }
+ 
+-    gen_icount_start();
++    gen_tb_start();
+ 
+     do {
+         check_breakpoint(cpu, dc);
+@@ -1781,7 +1781,7 @@ static inline void gen_intermediate_code
+         }
+     }
+ 
+-    gen_icount_end(tb, num_insns);
++    gen_tb_end(tb, num_insns);
+     *tcg_ctx.gen_opc_ptr = INDEX_op_end;
+     if (search_pc) {
+         j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
+Index: qemu/target-ppc/translate.c
+===================================================================
+--- qemu.orig/target-ppc/translate.c	2013-03-05 11:09:31.010270998 -0600
++++ qemu/target-ppc/translate.c	2013-03-05 11:09:30.994270998 -0600
+@@ -9654,7 +9654,7 @@ static inline void gen_intermediate_code
+     if (max_insns == 0)
+         max_insns = CF_COUNT_MASK;
+ 
+-    gen_icount_start();
++    gen_tb_start();
+     /* Set env in case of segfault during code fetch */
+     while (ctx.exception == POWERPC_EXCP_NONE
+             && tcg_ctx.gen_opc_ptr < gen_opc_end) {
+@@ -9766,7 +9766,7 @@ static inline void gen_intermediate_code
+         /* Generate the return instruction */
+         tcg_gen_exit_tb(0);
+     }
+-    gen_icount_end(tb, num_insns);
++    gen_tb_end(tb, num_insns);
+     *tcg_ctx.gen_opc_ptr = INDEX_op_end;
+     if (unlikely(search_pc)) {
+         j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
+Index: qemu/target-s390x/translate.c
+===================================================================
+--- qemu.orig/target-s390x/translate.c	2013-03-05 11:09:31.010270998 -0600
++++ qemu/target-s390x/translate.c	2013-03-05 11:09:30.998270998 -0600
+@@ -4770,7 +4770,7 @@ static inline void gen_intermediate_code
+         max_insns = CF_COUNT_MASK;
+     }
+ 
+-    gen_icount_start();
++    gen_tb_start();
+ 
+     do {
+         if (search_pc) {
+@@ -4846,7 +4846,7 @@ static inline void gen_intermediate_code
+         abort();
+     }
+ 
+-    gen_icount_end(tb, num_insns);
++    gen_tb_end(tb, num_insns);
+     *tcg_ctx.gen_opc_ptr = INDEX_op_end;
+     if (search_pc) {
+         j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
+Index: qemu/target-sh4/translate.c
+===================================================================
+--- qemu.orig/target-sh4/translate.c	2013-03-05 11:09:31.010270998 -0600
++++ qemu/target-sh4/translate.c	2013-03-05 11:09:30.998270998 -0600
+@@ -1985,7 +1985,7 @@ gen_intermediate_code_internal(CPUSH4Sta
+     max_insns = tb->cflags & CF_COUNT_MASK;
+     if (max_insns == 0)
+         max_insns = CF_COUNT_MASK;
+-    gen_icount_start();
++    gen_tb_start();
+     while (ctx.bstate == BS_NONE && tcg_ctx.gen_opc_ptr < gen_opc_end) {
+         if (unlikely(!QTAILQ_EMPTY(&env->breakpoints))) {
+             QTAILQ_FOREACH(bp, &env->breakpoints, entry) {
+@@ -2055,7 +2055,7 @@ gen_intermediate_code_internal(CPUSH4Sta
+ 	}
+     }
+ 
+-    gen_icount_end(tb, num_insns);
++    gen_tb_end(tb, num_insns);
+     *tcg_ctx.gen_opc_ptr = INDEX_op_end;
+     if (search_pc) {
+         i = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
+Index: qemu/target-sparc/translate.c
+===================================================================
+--- qemu.orig/target-sparc/translate.c	2013-03-05 11:09:31.010270998 -0600
++++ qemu/target-sparc/translate.c	2013-03-05 11:09:31.002270998 -0600
+@@ -5263,7 +5263,7 @@ static inline void gen_intermediate_code
+     max_insns = tb->cflags & CF_COUNT_MASK;
+     if (max_insns == 0)
+         max_insns = CF_COUNT_MASK;
+-    gen_icount_start();
++    gen_tb_start();
+     do {
+         if (unlikely(!QTAILQ_EMPTY(&env->breakpoints))) {
+             QTAILQ_FOREACH(bp, &env->breakpoints, entry) {
+@@ -5333,7 +5333,7 @@ static inline void gen_intermediate_code
+             tcg_gen_exit_tb(0);
+         }
+     }
+-    gen_icount_end(tb, num_insns);
++    gen_tb_end(tb, num_insns);
+     *tcg_ctx.gen_opc_ptr = INDEX_op_end;
+     if (spc) {
+         j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
+Index: qemu/target-unicore32/translate.c
+===================================================================
+--- qemu.orig/target-unicore32/translate.c	2013-03-05 11:09:31.010270998 -0600
++++ qemu/target-unicore32/translate.c	2013-03-05 11:09:31.002270998 -0600
+@@ -1982,7 +1982,7 @@ static inline void gen_intermediate_code
+     }
+ #endif
+ 
+-    gen_icount_start();
++    gen_tb_start();
+     do {
+         if (unlikely(!QTAILQ_EMPTY(&env->breakpoints))) {
+             QTAILQ_FOREACH(bp, &env->breakpoints, entry) {
+@@ -2102,7 +2102,7 @@ static inline void gen_intermediate_code
+     }
+ 
+ done_generating:
+-    gen_icount_end(tb, num_insns);
++    gen_tb_end(tb, num_insns);
+     *tcg_ctx.gen_opc_ptr = INDEX_op_end;
+ 
+ #ifdef DEBUG_DISAS
+Index: qemu/target-xtensa/translate.c
+===================================================================
+--- qemu.orig/target-xtensa/translate.c	2013-03-05 11:09:31.010270998 -0600
++++ qemu/target-xtensa/translate.c	2013-03-05 11:09:31.002270998 -0600
+@@ -2924,7 +2924,7 @@ static void gen_intermediate_code_intern
+         dc.next_icount = tcg_temp_local_new_i32();
+     }
+ 
+-    gen_icount_start();
++    gen_tb_start();
+ 
+     if (env->singlestep_enabled && env->exception_taken) {
+         env->exception_taken = 0;
+@@ -3002,7 +3002,7 @@ static void gen_intermediate_code_intern
+     if (dc.is_jmp == DISAS_NEXT) {
+         gen_jumpi(&dc, dc.pc, 0);
+     }
+-    gen_icount_end(tb, insn_count);
++    gen_tb_end(tb, insn_count);
+     *tcg_ctx.gen_opc_ptr = INDEX_op_end;
+ 
+     if (search_pc) {

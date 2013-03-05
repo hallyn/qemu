@@ -70,3 +70,10 @@ gridcentric/ramblock-filename
 gridcentric/silent_stop.patch
 0001-fix-wrong-output-with-info-chardev-for-tcp-socket.patch
 #FUTEX_WAIT_BITSET.patch
+armpatches/01_tcg-document-tcg_qemu_tb_exec
+armpatches/02-cpu-introduce-env_offset-macros
+armpatches/03-cpu-exec-wrap_tcg_qemu_tb_exec
+armpatches/04-handle-cpu-interrupts-by-inline-checking-of-flag
+armpatches/05-translate-all.c-remove-cpu_unlink_tb
+armpatches/06-gen-icont.h-rename-gne_icount_start_end
+cmake.patch

@@ -1,3 +1,10 @@
+qemu (1.4.0+dfsg-1expubuntu3futex1) raring; urgency=low
+
+  * Import 7 patches to try to fix deadlocks with user space code using
+    futex.  (LP: #1129571)
+
+ -- Serge Hallyn <serge.hallyn@ubuntu.com>  Tue, 05 Mar 2013 11:11:10 -0600
+
 qemu (1.4.0+dfsg-1expubuntu3) raring; urgency=low
 
   * debian/rules: add a symlink from kvm-spice to kvm in qemu-kvm, on

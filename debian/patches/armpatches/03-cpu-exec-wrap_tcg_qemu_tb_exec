@@ -1,0 +1,91 @@
+commit 77211379d73ea0c89c0b5bb6eee74b17cb06f9a8
+Author: Peter Maydell <peter.maydell@linaro.org>
+Date:   Fri Feb 22 18:10:02 2013 +0000
+
+    cpu-exec: wrap tcg_qemu_tb_exec() in a fn to restore the PC
+    
+    If tcg_qemu_tb_exec() returns a value whose low bits don't indicate a
+    link to an indexed next TB, this means that the TB execution never
+    started (eg because the instruction counter hit zero).  In this case the
+    guest PC has to be reset to the address of the start of the TB.
+    Refactor the cpu-exec code to make all tcg_qemu_tb_exec() calls pass
+    through a wrapper function which does this restoration if necessary.
+    
+    Note that the apparent change in cpu_exec_nocache() from calling
+    cpu_pc_from_tb() with the old TB to calling it with the TB returned by
+    do_tcg_qemu_tb_exec() is safe, because in the nocache case we can
+    guarantee that the TB we try to execute is not linked to any others,
+    so the only possible returned TB is the one we started at. That is,
+    we should arguably previously have included in cpu_exec_nocache() an
+    assert(next_tb & ~TB_EXIT_MASK) == tb), since the API requires restore
+    from next_tb but we were using tb.
+    
+    Signed-off-by: Peter Maydell <peter.maydell@linaro.org>
+    Reviewed-by: Richard Henderson <rth@twiddle.net>
+    Signed-off-by: Blue Swirl <blauwirbel@gmail.com>
+
+Index: qemu/cpu-exec.c
+===================================================================
+--- qemu.orig/cpu-exec.c	2013-03-05 11:05:13.742275354 -0600
++++ qemu/cpu-exec.c	2013-03-05 11:06:27.402274106 -0600
+@@ -51,12 +51,28 @@ void cpu_resume_from_signal(CPUArchState
+ }
+ #endif
+ 
++/* Execute a TB, and fix up the CPU state afterwards if necessary */
++static inline tcg_target_ulong cpu_tb_exec(CPUState *cpu, uint8_t *tb_ptr)
++{
++    CPUArchState *env = cpu->env_ptr;
++    tcg_target_ulong next_tb = tcg_qemu_tb_exec(env, tb_ptr);
++    if ((next_tb & TB_EXIT_MASK) > TB_EXIT_IDX1) {
++        /* We didn't start executing this TB (eg because the instruction
++         * counter hit zero); we must restore the guest PC to the address
++         * of the start of the TB.
++         */
++        TranslationBlock *tb = (TranslationBlock *)(next_tb & ~TB_EXIT_MASK);
++        cpu_pc_from_tb(env, tb);
++    }
++    return next_tb;
++}
++
+ /* Execute the code without caching the generated code. An interpreter
+    could be used if available. */
+ static void cpu_exec_nocache(CPUArchState *env, int max_cycles,
+                              TranslationBlock *orig_tb)
+ {
+-    tcg_target_ulong next_tb;
++    CPUState *cpu = ENV_GET_CPU(env);
+     TranslationBlock *tb;
+ 
+     /* Should never happen.
+@@ -68,14 +84,9 @@ static void cpu_exec_nocache(CPUArchStat
+                      max_cycles);
+     env->current_tb = tb;
+     /* execute the generated code */
+-    next_tb = tcg_qemu_tb_exec(env, tb->tc_ptr);
++    cpu_tb_exec(cpu, tb->tc_ptr);
+     env->current_tb = NULL;
+ 
+-    if ((next_tb & TB_EXIT_MASK) == TB_EXIT_ICOUNT_EXPIRED) {
+-        /* Restore PC.  This may happen if async event occurs before
+-           the TB starts executing.  */
+-        cpu_pc_from_tb(env, tb);
+-    }
+     tb_phys_invalidate(tb, -1);
+     tb_free(tb);
+ }
+@@ -597,13 +608,11 @@ int cpu_exec(CPUArchState *env)
+                 if (likely(!env->exit_request)) {
+                     tc_ptr = tb->tc_ptr;
+                     /* execute the generated code */
+-                    next_tb = tcg_qemu_tb_exec(env, tc_ptr);
++                    next_tb = cpu_tb_exec(cpu, tc_ptr);
+                     if ((next_tb & TB_EXIT_MASK) == TB_EXIT_ICOUNT_EXPIRED) {
+                         /* Instruction counter expired.  */
+                         int insns_left;
+                         tb = (TranslationBlock *)(next_tb & ~TB_EXIT_MASK);
+-                        /* Restore PC.  */
+-                        cpu_pc_from_tb(env, tb);
+                         insns_left = env->icount_decr.u32;
+                         if (env->icount_extra && insns_left >= 0) {
+                             /* Refill decrementer and continue execution.  */

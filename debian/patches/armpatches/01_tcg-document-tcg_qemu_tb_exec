@@ -1,0 +1,119 @@
+commit 0980011b4f66482d2733ab2dd0f2f61747772c6b
+Author: Peter Maydell <peter.maydell@linaro.org>
+Date:   Fri Feb 22 18:10:00 2013 +0000
+
+    tcg: Document tcg_qemu_tb_exec() and provide constants for low bit uses
+    
+    Document tcg_qemu_tb_exec(). In particular, its return value is a
+    combination of a pointer to the next translation block and some
+    extra information in the low two bits. Provide some #defines for
+    the values passed in these bits to improve code clarity.
+    
+    Signed-off-by: Peter Maydell <peter.maydell@linaro.org>
+    Reviewed-by: Richard Henderson <rth@twiddle.net>
+    Signed-off-by: Blue Swirl <blauwirbel@gmail.com>
+
+diff --git a/cpu-exec.c b/cpu-exec.c
+index afbe497..2c6b091 100644
+--- a/cpu-exec.c
++++ b/cpu-exec.c
+@@ -72,7 +72,7 @@ static void cpu_exec_nocache(CPUArchState *env, int max_cycles,
+     next_tb = tcg_qemu_tb_exec(env, tb->tc_ptr);
+     cpu->current_tb = NULL;
+ 
+-    if ((next_tb & 3) == 2) {
++    if ((next_tb & TB_EXIT_MASK) == TB_EXIT_ICOUNT_EXPIRED) {
+         /* Restore PC.  This may happen if async event occurs before
+            the TB starts executing.  */
+         cpu_pc_from_tb(env, tb);
+@@ -584,7 +584,8 @@ int cpu_exec(CPUArchState *env)
+                    spans two pages, we cannot safely do a direct
+                    jump. */
+                 if (next_tb != 0 && tb->page_addr[1] == -1) {
+-                    tb_add_jump((TranslationBlock *)(next_tb & ~3), next_tb & 3, tb);
++                    tb_add_jump((TranslationBlock *)(next_tb & ~TB_EXIT_MASK),
++                                next_tb & TB_EXIT_MASK, tb);
+                 }
+                 spin_unlock(&tcg_ctx.tb_ctx.tb_lock);
+ 
+@@ -598,10 +599,10 @@ int cpu_exec(CPUArchState *env)
+                     tc_ptr = tb->tc_ptr;
+                     /* execute the generated code */
+                     next_tb = tcg_qemu_tb_exec(env, tc_ptr);
+-                    if ((next_tb & 3) == 2) {
++                    if ((next_tb & TB_EXIT_MASK) == TB_EXIT_ICOUNT_EXPIRED) {
+                         /* Instruction counter expired.  */
+                         int insns_left;
+-                        tb = (TranslationBlock *)(next_tb & ~3);
++                        tb = (TranslationBlock *)(next_tb & ~TB_EXIT_MASK);
+                         /* Restore PC.  */
+                         cpu_pc_from_tb(env, tb);
+                         insns_left = env->icount_decr.u32;
+diff --git a/include/exec/gen-icount.h b/include/exec/gen-icount.h
+index 8043b3b..c858a73 100644
+--- a/include/exec/gen-icount.h
++++ b/include/exec/gen-icount.h
+@@ -32,7 +32,7 @@ static void gen_icount_end(TranslationBlock *tb, int num_insns)
+     if (use_icount) {
+         *icount_arg = num_insns;
+         gen_set_label(icount_label);
+-        tcg_gen_exit_tb((tcg_target_long)tb + 2);
++        tcg_gen_exit_tb((tcg_target_long)tb + TB_EXIT_ICOUNT_EXPIRED);
+     }
+ }
+ 
+diff --git a/tcg/tcg.h b/tcg/tcg.h
+index b195396..f5d0aed 100644
+--- a/tcg/tcg.h
++++ b/tcg/tcg.h
+@@ -677,7 +677,49 @@ TCGv_i64 tcg_const_i64(int64_t val);
+ TCGv_i32 tcg_const_local_i32(int32_t val);
+ TCGv_i64 tcg_const_local_i64(int64_t val);
+ 
+-/* TCG targets may use a different definition of tcg_qemu_tb_exec. */
++/**
++ * tcg_qemu_tb_exec:
++ * @env: CPUArchState * for the CPU
++ * @tb_ptr: address of generated code for the TB to execute
++ *
++ * Start executing code from a given translation block.
++ * Where translation blocks have been linked, execution
++ * may proceed from the given TB into successive ones.
++ * Control eventually returns only when some action is needed
++ * from the top-level loop: either control must pass to a TB
++ * which has not yet been directly linked, or an asynchronous
++ * event such as an interrupt needs handling.
++ *
++ * The return value is a pointer to the next TB to execute
++ * (if known; otherwise zero). This pointer is assumed to be
++ * 4-aligned, and the bottom two bits are used to return further
++ * information:
++ *  0, 1: the link between this TB and the next is via the specified
++ *        TB index (0 or 1). That is, we left the TB via (the equivalent
++ *        of) "goto_tb <index>". The main loop uses this to determine
++ *        how to link the TB just executed to the next.
++ *  2:    we are using instruction counting code generation, and we
++ *        did not start executing this TB because the instruction counter
++ *        would hit zero midway through it. In this case the next-TB pointer
++ *        returned is the TB we were about to execute, and the caller must
++ *        arrange to execute the remaining count of instructions.
++ *
++ * If the bottom two bits indicate an exit-via-index then the CPU
++ * state is correctly synchronised and ready for execution of the next
++ * TB (and in particular the guest PC is the address to execute next).
++ * Otherwise, we gave up on execution of this TB before it started, and
++ * the caller must fix up the CPU state by calling cpu_pc_from_tb()
++ * with the next-TB pointer we return.
++ *
++ * Note that TCG targets may use a different definition of tcg_qemu_tb_exec
++ * to this default (which just calls the prologue.code emitted by
++ * tcg_target_qemu_prologue()).
++ */
++#define TB_EXIT_MASK 3
++#define TB_EXIT_IDX0 0
++#define TB_EXIT_IDX1 1
++#define TB_EXIT_ICOUNT_EXPIRED 2
++
+ #if !defined(tcg_qemu_tb_exec)
+ # define tcg_qemu_tb_exec(env, tb_ptr) \
+     ((tcg_target_ulong (*)(void *, void *))tcg_ctx.code_gen_prologue)(env, \

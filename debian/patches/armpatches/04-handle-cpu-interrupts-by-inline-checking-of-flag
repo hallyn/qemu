@@ -1,0 +1,192 @@
+commit 378df4b23753a11be650af7664ca76bc75cb9f01
+Author: Peter Maydell <peter.maydell@linaro.org>
+Date:   Fri Feb 22 18:10:03 2013 +0000
+
+    Handle CPU interrupts by inline checking of a flag
+    
+    Fix some of the nasty TCG race conditions and crashes by implementing
+    cpu_exit() as setting a flag which is checked at the start of each TB.
+    This avoids crashes if a thread or signal handler calls cpu_exit()
+    while the execution thread is itself modifying the TB graph (which
+    may happen in system emulation mode as well as in linux-user mode
+    with a multithreaded guest binary).
+    
+    This fixes the crashes seen in LP:668799; however there are another
+    class of crashes described in LP:1098729 which stem from the fact
+    that in linux-user with a multithreaded guest all threads will
+    use and modify the same global TCG date structures (including the
+    generated code buffer) without any kind of locking. This means that
+    multithreaded guest binaries are still in the "unsupported"
+    category.
+    
+    Signed-off-by: Peter Maydell <peter.maydell@linaro.org>
+    Reviewed-by: Richard Henderson <rth@twiddle.net>
+    Signed-off-by: Blue Swirl <blauwirbel@gmail.com>
+
+Index: qemu/cpu-exec.c
+===================================================================
+--- qemu.orig/cpu-exec.c	2013-03-05 11:06:36.798273947 -0600
++++ qemu/cpu-exec.c	2013-03-05 11:06:36.786273948 -0600
+@@ -64,6 +64,12 @@ static inline tcg_target_ulong cpu_tb_ex
+         TranslationBlock *tb = (TranslationBlock *)(next_tb & ~TB_EXIT_MASK);
+         cpu_pc_from_tb(env, tb);
+     }
++    if ((next_tb & TB_EXIT_MASK) == TB_EXIT_REQUESTED) {
++        /* We were asked to stop executing TBs (probably a pending
++         * interrupt. We've now stopped, so clear the flag.
++         */
++        cpu->tcg_exit_req = 0;
++    }
+     return next_tb;
+ }
+ 
+@@ -609,7 +615,20 @@ int cpu_exec(CPUArchState *env)
+                     tc_ptr = tb->tc_ptr;
+                     /* execute the generated code */
+                     next_tb = cpu_tb_exec(cpu, tc_ptr);
+-                    if ((next_tb & TB_EXIT_MASK) == TB_EXIT_ICOUNT_EXPIRED) {
++                    switch (next_tb & TB_EXIT_MASK) {
++                    case TB_EXIT_REQUESTED:
++                        /* Something asked us to stop executing
++                         * chained TBs; just continue round the main
++                         * loop. Whatever requested the exit will also
++                         * have set something else (eg exit_request or
++                         * interrupt_request) which we will handle
++                         * next time around the loop.
++                         */
++                        tb = (TranslationBlock *)(next_tb & ~TB_EXIT_MASK);
++                        next_tb = 0;
++                        break;
++                    case TB_EXIT_ICOUNT_EXPIRED:
++                    {
+                         /* Instruction counter expired.  */
+                         int insns_left;
+                         tb = (TranslationBlock *)(next_tb & ~TB_EXIT_MASK);
+@@ -633,6 +652,10 @@ int cpu_exec(CPUArchState *env)
+                             next_tb = 0;
+                             cpu_loop_exit(env);
+                         }
++                        break;
++                    }
++                    default:
++                        break;
+                     }
+                 }
+                 env->current_tb = NULL;
+Index: qemu/exec.c
+===================================================================
+--- qemu.orig/exec.c	2013-03-05 11:06:36.798273947 -0600
++++ qemu/exec.c	2013-03-05 11:07:06.418273446 -0600
+@@ -492,8 +492,9 @@ void cpu_reset_interrupt(CPUArchState *e
+ 
+ void cpu_exit(CPUArchState *env)
+ {
++    CPUState *cpu = ENV_GET_CPU(env);
+     env->exit_request = 1;
+-    cpu_unlink_tb(env);
++    cpu->tcg_exit_req = 1;
+ }
+ 
+ void cpu_abort(CPUArchState *env, const char *fmt, ...)
+Index: qemu/include/exec/gen-icount.h
+===================================================================
+--- qemu.orig/include/exec/gen-icount.h	2013-03-05 11:06:36.798273947 -0600
++++ qemu/include/exec/gen-icount.h	2013-03-05 11:06:36.790273948 -0600
+@@ -7,10 +7,19 @@
+ 
+ static TCGArg *icount_arg;
+ static int icount_label;
++static int exitreq_label;
+ 
+ static inline void gen_icount_start(void)
+ {
+     TCGv_i32 count;
++    TCGv_i32 flag;
++
++    exitreq_label = gen_new_label();
++    flag = tcg_temp_local_new_i32();
++    tcg_gen_ld_i32(flag, cpu_env,
++                   offsetof(CPUState, tcg_exit_req) - ENV_OFFSET);
++    tcg_gen_brcondi_i32(TCG_COND_NE, flag, 0, exitreq_label);
++    tcg_temp_free_i32(flag);
+ 
+     if (!use_icount)
+         return;
+@@ -29,6 +38,9 @@ static inline void gen_icount_start(void
+ 
+ static void gen_icount_end(TranslationBlock *tb, int num_insns)
+ {
++    gen_set_label(exitreq_label);
++    tcg_gen_exit_tb((tcg_target_long)tb + TB_EXIT_REQUESTED);
++
+     if (use_icount) {
+         *icount_arg = num_insns;
+         gen_set_label(icount_label);
+Index: qemu/include/qom/cpu.h
+===================================================================
+--- qemu.orig/include/qom/cpu.h	2013-03-05 11:06:36.798273947 -0600
++++ qemu/include/qom/cpu.h	2013-03-05 11:08:32.558271987 -0600
+@@ -68,6 +68,8 @@ struct kvm_run;
+  * @created: Indicates whether the CPU thread has been successfully created.
+  * @stop: Indicates a pending stop request.
+  * @stopped: Indicates the CPU has been artificially stopped.
++ * @tcg_exit_req: Set to force TCG to stop executing linked TBs for this
++ *           CPU and return to its top level loop.
+  * @kvm_fd: vCPU file descriptor for KVM.
+  *
+  * State of one CPU core or thread.
+@@ -92,6 +94,7 @@ struct CPUState {
+     bool created;
+     bool stop;
+     bool stopped;
++    volatile sig_atomic_t tcg_exit_req;
+ 
+     int kvm_fd;
+     bool kvm_vcpu_dirty;
+Index: qemu/tcg/tcg.h
+===================================================================
+--- qemu.orig/tcg/tcg.h	2013-03-05 11:06:36.798273947 -0600
++++ qemu/tcg/tcg.h	2013-03-05 11:06:36.790273948 -0600
+@@ -686,6 +686,10 @@ extern uint8_t *code_gen_prologue;
+  *        would hit zero midway through it. In this case the next-TB pointer
+  *        returned is the TB we were about to execute, and the caller must
+  *        arrange to execute the remaining count of instructions.
++ *  3:    we stopped because the CPU's exit_request flag was set
++ *        (usually meaning that there is an interrupt that needs to be
++ *        handled). The next-TB pointer returned is the TB we were
++ *        about to execute when we noticed the pending exit request.
+  *
+  * If the bottom two bits indicate an exit-via-index then the CPU
+  * state is correctly synchronised and ready for execution of the next
+@@ -702,6 +706,7 @@ extern uint8_t *code_gen_prologue;
+ #define TB_EXIT_IDX0 0
+ #define TB_EXIT_IDX1 1
+ #define TB_EXIT_ICOUNT_EXPIRED 2
++#define TB_EXIT_REQUESTED 3
+ 
+ #if !defined(tcg_qemu_tb_exec)
+ # define tcg_qemu_tb_exec(env, tb_ptr) \
+Index: qemu/translate-all.c
+===================================================================
+--- qemu.orig/translate-all.c	2013-03-05 11:06:36.798273947 -0600
++++ qemu/translate-all.c	2013-03-05 11:07:57.858272575 -0600
+@@ -1476,7 +1476,7 @@ static void tcg_handle_interrupt(CPUArch
+             cpu_abort(env, "Raised interrupt while not in I/O function");
+         }
+     } else {
+-        cpu_unlink_tb(env);
++        cpu->tcg_exit_req = 1;
+     }
+ }
+ 
+@@ -1616,8 +1616,9 @@ void dump_exec_info(FILE *f, fprintf_fun
+ 
+ void cpu_interrupt(CPUArchState *env, int mask)
+ {
++    CPUState *cpu = ENV_GET_CPU(env);
+     env->interrupt_request |= mask;
+-    cpu_unlink_tb(env);
++    cpu->tcg_exit_req = 1;
+ }
+ 
+ /*
