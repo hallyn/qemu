@@ -1,0 +1,278 @@
+commit c05efcb18ee30cdf2b00b3512aa0f5233b52911f
+Author: Andreas Färber <afaerber@suse.de>
+Date:   Thu Jan 17 12:13:41 2013 +0100
+
+    cpu: Add CPUArchState pointer to CPUState
+    
+    The target-specific ENV_GET_CPU() macros have allowed us to navigate
+    from CPUArchState to CPUState. The reverse direction was not supported.
+    Avoid introducing CPU_GET_ENV() macros by initializing an untyped
+    pointer that is initialized in derived instance_init functions.
+    
+    The field may not be called "env" due to it being poisoned.
+    
+    Acked-by: Richard Henderson <rth@twiddle.net>
+    Signed-off-by: Andreas Färber <afaerber@suse.de>
+
+Index: qemu/include/qom/cpu.h
+===================================================================
+--- qemu.orig/include/qom/cpu.h	2013-03-05 16:46:59.321928153 -0600
++++ qemu/include/qom/cpu.h	2013-03-05 16:46:59.305928153 -0600
+@@ -71,6 +71,7 @@ struct kvm_run;
+  * @created: Indicates whether the CPU thread has been successfully created.
+  * @stop: Indicates a pending stop request.
+  * @stopped: Indicates the CPU has been artificially stopped.
++ * @env_ptr: Pointer to subclass-specific CPUArchState field.
+  * @current_tb: Currently executing TB.
+  * @kvm_fd: vCPU file descriptor for KVM.
+  *
+@@ -100,6 +101,7 @@ struct CPUState {
+     bool stopped;
+     volatile sig_atomic_t exit_request;
+ 
++    void *env_ptr; /* CPUArchState */
+     struct TranslationBlock *current_tb;
+ 
+     int kvm_fd;
+Index: qemu/target-alpha/cpu.c
+===================================================================
+--- qemu.orig/target-alpha/cpu.c	2013-03-05 16:46:59.321928153 -0600
++++ qemu/target-alpha/cpu.c	2013-03-05 16:46:59.305928153 -0600
+@@ -230,9 +230,11 @@ static const TypeInfo ev68_cpu_type_info
+ 
+ static void alpha_cpu_initfn(Object *obj)
+ {
++    CPUState *cs = CPU(obj);
+     AlphaCPU *cpu = ALPHA_CPU(obj);
+     CPUAlphaState *env = &cpu->env;
+ 
++    cs->env_ptr = env;
+     cpu_exec_init(env);
+     tlb_flush(env, 1);
+ 
+Index: qemu/target-arm/cpu.c
+===================================================================
+--- qemu.orig/target-arm/cpu.c	2013-03-05 16:46:59.321928153 -0600
++++ qemu/target-arm/cpu.c	2013-03-05 16:51:14.905923825 -0600
+@@ -134,8 +134,10 @@ static inline void set_feature(CPUARMSta
+ 
+ static void arm_cpu_initfn(Object *obj)
+ {
++    CPUState *cs = CPU(obj);
+     ARMCPU *cpu = ARM_CPU(obj);
+ 
++    cs->env_ptr = &cpu->env;
+     cpu_exec_init(&cpu->env);
+     cpu->cp_regs = g_hash_table_new_full(g_int_hash, g_int_equal,
+                                          g_free, g_free);
+Index: qemu/target-cris/cpu.c
+===================================================================
+--- qemu.orig/target-cris/cpu.c	2013-03-05 16:46:59.321928153 -0600
++++ qemu/target-cris/cpu.c	2013-03-05 16:48:36.273926511 -0600
+@@ -57,9 +57,11 @@ static void cris_cpu_reset(CPUState *s)
+ 
+ static void cris_cpu_initfn(Object *obj)
+ {
++    CPUState *cs = CPU(obj);
+     CRISCPU *cpu = CRIS_CPU(obj);
+     CPUCRISState *env = &cpu->env;
+ 
++    cs->env_ptr = env;
+     cpu_exec_init(env);
+ }
+ 
+Index: qemu/target-i386/cpu.c
+===================================================================
+--- qemu.orig/target-i386/cpu.c	2013-03-05 16:46:59.321928153 -0600
++++ qemu/target-i386/cpu.c	2013-03-05 16:46:59.309928153 -0600
+@@ -2158,6 +2158,7 @@ static void x86_cpu_initfn(Object *obj)
+     CPUX86State *env = &cpu->env;
+     static int inited;
+ 
++    cs->env_ptr = env;
+     cpu_exec_init(env);
+ 
+     object_property_add(obj, "family", "int",
+Index: qemu/target-lm32/cpu.c
+===================================================================
+--- qemu.orig/target-lm32/cpu.c	2013-03-05 16:46:59.321928153 -0600
++++ qemu/target-lm32/cpu.c	2013-03-05 16:48:09.369926967 -0600
+@@ -44,9 +44,11 @@ static void lm32_cpu_reset(CPUState *s)
+ 
+ static void lm32_cpu_initfn(Object *obj)
+ {
++    CPUState *cs = CPU(obj);
+     LM32CPU *cpu = LM32_CPU(obj);
+     CPULM32State *env = &cpu->env;
+ 
++    cs->env_ptr = env;
+     cpu_exec_init(env);
+ 
+     env->flags = 0;
+Index: qemu/target-m68k/cpu.c
+===================================================================
+--- qemu.orig/target-m68k/cpu.c	2013-03-05 16:46:59.321928153 -0600
++++ qemu/target-m68k/cpu.c	2013-03-05 16:49:41.181925412 -0600
+@@ -154,10 +154,12 @@ static const VMStateDescription vmstate_
+ 
+ static void m68k_cpu_class_init(ObjectClass *c, void *data)
+ {
++    CPUState *cs = CPU(obj);
+     M68kCPUClass *mcc = M68K_CPU_CLASS(c);
+     CPUClass *cc = CPU_CLASS(c);
+     DeviceClass *dc = DEVICE_CLASS(c);
+ 
++    cs->env_ptr = env;
+     mcc->parent_reset = cc->reset;
+     cc->reset = m68k_cpu_reset;
+ 
+Index: qemu/target-microblaze/cpu.c
+===================================================================
+--- qemu.orig/target-microblaze/cpu.c	2013-03-05 16:46:59.321928153 -0600
++++ qemu/target-microblaze/cpu.c	2013-03-05 16:50:59.601924085 -0600
+@@ -87,9 +87,11 @@ static void mb_cpu_reset(CPUState *s)
+ 
+ static void mb_cpu_initfn(Object *obj)
+ {
++    CPUState *cs = CPU(obj);
+     MicroBlazeCPU *cpu = MICROBLAZE_CPU(obj);
+     CPUMBState *env = &cpu->env;
+ 
++    cs->env_ptr = env;
+     cpu_exec_init(env);
+ 
+     set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
+Index: qemu/target-mips/cpu.c
+===================================================================
+--- qemu.orig/target-mips/cpu.c	2013-03-05 16:46:59.321928153 -0600
++++ qemu/target-mips/cpu.c	2013-03-05 16:46:59.309928153 -0600
+@@ -44,9 +44,11 @@ static void mips_cpu_reset(CPUState *s)
+ 
+ static void mips_cpu_initfn(Object *obj)
+ {
++    CPUState *cs = CPU(obj);
+     MIPSCPU *cpu = MIPS_CPU(obj);
+     CPUMIPSState *env = &cpu->env;
+ 
++    cs->env_ptr = env;
+     cpu_exec_init(env);
+ }
+ 
+Index: qemu/target-openrisc/cpu.c
+===================================================================
+--- qemu.orig/target-openrisc/cpu.c	2013-03-05 16:46:59.321928153 -0600
++++ qemu/target-openrisc/cpu.c	2013-03-05 16:46:59.309928153 -0600
+@@ -72,9 +72,11 @@ void openrisc_cpu_realize(Object *obj, E
+ 
+ static void openrisc_cpu_initfn(Object *obj)
+ {
++    CPUState *cs = CPU(obj);
+     OpenRISCCPU *cpu = OPENRISC_CPU(obj);
+     static int inited;
+ 
++    cs->env_ptr = &cpu->env;
+     cpu_exec_init(&cpu->env);
+ 
+ #ifndef CONFIG_USER_ONLY
+Index: qemu/target-ppc/translate_init.c
+===================================================================
+--- qemu.orig/target-ppc/translate_init.c	2013-03-05 16:46:59.321928153 -0600
++++ qemu/target-ppc/translate_init.c	2013-03-05 16:46:59.313928153 -0600
+@@ -10532,11 +10532,13 @@ static void ppc_cpu_reset(CPUState *s)
+ 
+ static void ppc_cpu_initfn(Object *obj)
+ {
++    CPUState *cs = CPU(obj);
+     PowerPCCPU *cpu = POWERPC_CPU(obj);
+     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
+     CPUPPCState *env = &cpu->env;
+     ppc_def_t *def = pcc->info;
+ 
++    cs->env_ptr = env;
+     cpu_exec_init(env);
+ 
+     env->msr_mask = def->msr_mask;
+Index: qemu/target-s390x/cpu.c
+===================================================================
+--- qemu.orig/target-s390x/cpu.c	2013-03-05 16:46:59.321928153 -0600
++++ qemu/target-s390x/cpu.c	2013-03-05 16:46:59.317928153 -0600
+@@ -99,6 +99,7 @@ static void s390_cpu_machine_reset_cb(vo
+ 
+ static void s390_cpu_initfn(Object *obj)
+ {
++    CPUState *cs = CPU(obj);
+     S390CPU *cpu = S390_CPU(obj);
+     CPUS390XState *env = &cpu->env;
+     static int cpu_num = 0;
+@@ -106,6 +107,7 @@ static void s390_cpu_initfn(Object *obj)
+     struct tm tm;
+ #endif
+ 
++    cs->env_ptr = env;
+     cpu_exec_init(env);
+ #if !defined(CONFIG_USER_ONLY)
+     qemu_register_reset(s390_cpu_machine_reset_cb, cpu);
+Index: qemu/target-sh4/cpu.c
+===================================================================
+--- qemu.orig/target-sh4/cpu.c	2013-03-05 16:46:59.321928153 -0600
++++ qemu/target-sh4/cpu.c	2013-03-05 16:46:59.317928153 -0600
+@@ -56,9 +56,11 @@ static void superh_cpu_reset(CPUState *s
+ 
+ static void superh_cpu_initfn(Object *obj)
+ {
++    CPUState *cs = CPU(obj);
+     SuperHCPU *cpu = SUPERH_CPU(obj);
+     CPUSH4State *env = &cpu->env;
+ 
++    cs->env_ptr = env;
+     cpu_exec_init(env);
+ 
+     env->movcal_backup_tail = &(env->movcal_backup);
+Index: qemu/target-sparc/cpu.c
+===================================================================
+--- qemu.orig/target-sparc/cpu.c	2013-03-05 16:46:59.321928153 -0600
++++ qemu/target-sparc/cpu.c	2013-03-05 16:46:59.317928153 -0600
+@@ -853,9 +853,11 @@ void cpu_dump_state(CPUSPARCState *env,
+ 
+ static void sparc_cpu_initfn(Object *obj)
+ {
++    CPUState *cs = CPU(obj);
+     SPARCCPU *cpu = SPARC_CPU(obj);
+     CPUSPARCState *env = &cpu->env;
+ 
++    cs->env_ptr = env;
+     cpu_exec_init(env);
+ }
+ 
+Index: qemu/target-unicore32/cpu.c
+===================================================================
+--- qemu.orig/target-unicore32/cpu.c	2013-03-05 16:46:59.321928153 -0600
++++ qemu/target-unicore32/cpu.c	2013-03-05 16:49:21.233925750 -0600
+@@ -83,9 +83,11 @@ static const UniCore32CPUInfo uc32_cpus[
+ 
+ static void uc32_cpu_initfn(Object *obj)
+ {
++    CPUState *cs = CPU(obj);
+     UniCore32CPU *cpu = UNICORE32_CPU(obj);
+     CPUUniCore32State *env = &cpu->env;
+ 
++    cs->env_ptr = env;
+     cpu_exec_init(env);
+ 
+ #ifdef CONFIG_USER_ONLY
+Index: qemu/target-xtensa/cpu.c
+===================================================================
+--- qemu.orig/target-xtensa/cpu.c	2013-03-05 16:46:59.321928153 -0600
++++ qemu/target-xtensa/cpu.c	2013-03-05 16:50:37.001924467 -0600
+@@ -59,9 +59,11 @@ static void xtensa_cpu_reset(CPUState *s
+ 
+ static void xtensa_cpu_initfn(Object *obj)
+ {
++    CPUState *cs = CPU(obj);
+     XtensaCPU *cpu = XTENSA_CPU(obj);
+     CPUXtensaState *env = &cpu->env;
+ 
++    cs->env_ptr = env;
+     cpu_exec_init(env);
+ }
+ 

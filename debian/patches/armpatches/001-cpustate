@@ -1,0 +1,179 @@
+commit 0d34282fdde1d8f337d2a9e10f5ac793b12ef2e7
+Author: Andreas Färber <afaerber@suse.de>
+Date:   Mon Dec 17 07:12:13 2012 +0100
+
+    cpu: Move host_tid field to CPUState
+    
+    Change gdbstub's cpu_index() argument to CPUState now that CPUArchState
+    is no longer used.
+    
+    Signed-off-by: Andreas Färber <afaerber@suse.de>
+
+diff --git a/dump.c b/dump.c
+index 4ed1fa8..a25f509 100644
+--- a/dump.c
++++ b/dump.c
+@@ -271,11 +271,13 @@ static int write_elf64_note(DumpState *s)
+ static int write_elf64_notes(DumpState *s)
+ {
+     CPUArchState *env;
++    CPUState *cpu;
+     int ret;
+     int id;
+ 
+     for (env = first_cpu; env != NULL; env = env->next_cpu) {
+-        id = cpu_index(env);
++        cpu = ENV_GET_CPU(env);
++        id = cpu_index(cpu);
+         ret = cpu_write_elf64_note(fd_write_vmcore, env, id, s);
+         if (ret < 0) {
+             dump_error(s, "dump: failed to write elf notes.\n");
+@@ -321,11 +323,13 @@ static int write_elf32_note(DumpState *s)
+ static int write_elf32_notes(DumpState *s)
+ {
+     CPUArchState *env;
++    CPUState *cpu;
+     int ret;
+     int id;
+ 
+     for (env = first_cpu; env != NULL; env = env->next_cpu) {
+-        id = cpu_index(env);
++        cpu = ENV_GET_CPU(env);
++        id = cpu_index(cpu);
+         ret = cpu_write_elf32_note(fd_write_vmcore, env, id, s);
+         if (ret < 0) {
+             dump_error(s, "dump: failed to write elf notes.\n");
+diff --git a/gdbstub.c b/gdbstub.c
+index 6cd26f1..32dfea9 100644
+--- a/gdbstub.c
++++ b/gdbstub.c
+@@ -2066,9 +2066,11 @@ static void gdb_set_cpu_pc(GDBState *s, target_ulong pc)
+ static CPUArchState *find_cpu(uint32_t thread_id)
+ {
+     CPUArchState *env;
++    CPUState *cpu;
+ 
+     for (env = first_cpu; env != NULL; env = env->next_cpu) {
+-        if (cpu_index(env) == thread_id) {
++        cpu = ENV_GET_CPU(env);
++        if (cpu_index(cpu) == thread_id) {
+             return env;
+         }
+     }
+@@ -2096,7 +2098,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
+     case '?':
+         /* TODO: Make this return the correct value for user-mode.  */
+         snprintf(buf, sizeof(buf), "T%02xthread:%02x;", GDB_SIGNAL_TRAP,
+-                 cpu_index(s->c_cpu));
++                 cpu_index(ENV_GET_CPU(s->c_cpu)));
+         put_packet(s, buf);
+         /* Remove all the breakpoints when this query is issued,
+          * because gdb is doing and initial connect and the state
+@@ -2391,7 +2393,8 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
+         } else if (strcmp(p,"sThreadInfo") == 0) {
+         report_cpuinfo:
+             if (s->query_cpu) {
+-                snprintf(buf, sizeof(buf), "m%x", cpu_index(s->query_cpu));
++                snprintf(buf, sizeof(buf), "m%x",
++                         cpu_index(ENV_GET_CPU(s->query_cpu)));
+                 put_packet(s, buf);
+                 s->query_cpu = s->query_cpu->next_cpu;
+             } else
+@@ -2512,6 +2515,7 @@ static void gdb_vm_state_change(void *opaque, int running, RunState state)
+ {
+     GDBState *s = gdbserver_state;
+     CPUArchState *env = s->c_cpu;
++    CPUState *cpu = ENV_GET_CPU(env);
+     char buf[256];
+     const char *type;
+     int ret;
+@@ -2540,7 +2544,7 @@ static void gdb_vm_state_change(void *opaque, int running, RunState state)
+             }
+             snprintf(buf, sizeof(buf),
+                      "T%02xthread:%02x;%swatch:" TARGET_FMT_lx ";",
+-                     GDB_SIGNAL_TRAP, cpu_index(env), type,
++                     GDB_SIGNAL_TRAP, cpu_index(cpu), type,
+                      env->watchpoint_hit->vaddr);
+             env->watchpoint_hit = NULL;
+             goto send_packet;
+@@ -2573,7 +2577,7 @@ static void gdb_vm_state_change(void *opaque, int running, RunState state)
+         ret = GDB_SIGNAL_UNKNOWN;
+         break;
+     }
+-    snprintf(buf, sizeof(buf), "T%02xthread:%02x;", ret, cpu_index(env));
++    snprintf(buf, sizeof(buf), "T%02xthread:%02x;", ret, cpu_index(cpu));
+ 
+ send_packet:
+     put_packet(s, buf);
+diff --git a/include/exec/cpu-defs.h b/include/exec/cpu-defs.h
+index 2911b9f..ae832a9 100644
+--- a/include/exec/cpu-defs.h
++++ b/include/exec/cpu-defs.h
+@@ -191,7 +191,6 @@ typedef struct CPUWatchpoint {
+     int exception_index;                                                \
+                                                                         \
+     CPUArchState *next_cpu; /* next CPU sharing TB cache */                 \
+-    uint32_t host_tid; /* host thread ID */                             \
+     int running; /* Nonzero if cpu is currently running(usermode).  */  \
+     /* user data */                                                     \
+     void *opaque;                                                       \
+diff --git a/include/exec/gdbstub.h b/include/exec/gdbstub.h
+index 49231fe..ba20afa 100644
+--- a/include/exec/gdbstub.h
++++ b/include/exec/gdbstub.h
+@@ -30,12 +30,11 @@ void gdb_register_coprocessor(CPUArchState *env,
+                               gdb_reg_cb get_reg, gdb_reg_cb set_reg,
+                               int num_regs, const char *xml, int g_pos);
+ 
+-static inline int cpu_index(CPUArchState *env)
++static inline int cpu_index(CPUState *cpu)
+ {
+ #if defined(CONFIG_USER_ONLY) && defined(CONFIG_USE_NPTL)
+-    return env->host_tid;
++    return cpu->host_tid;
+ #else
+-    CPUState *cpu = ENV_GET_CPU(env);
+     return cpu->cpu_index + 1;
+ #endif
+ }
+diff --git a/include/qom/cpu.h b/include/qom/cpu.h
+index 46f2247..e371655 100644
+--- a/include/qom/cpu.h
++++ b/include/qom/cpu.h
+@@ -65,6 +65,7 @@ struct kvm_run;
+  * @nr_cores: Number of cores within this CPU package.
+  * @nr_threads: Number of threads within this CPU.
+  * @numa_node: NUMA node this CPU is belonging to.
++ * @host_tid: Host thread ID.
+  * @created: Indicates whether the CPU thread has been successfully created.
+  * @stop: Indicates a pending stop request.
+  * @stopped: Indicates the CPU has been artificially stopped.
+@@ -86,6 +87,7 @@ struct CPUState {
+     HANDLE hThread;
+ #endif
+     int thread_id;
++    uint32_t host_tid;
+     struct QemuCond *halt_cond;
+     struct qemu_work_item *queued_work_first, *queued_work_last;
+     bool thread_kicked;
+diff --git a/linux-user/syscall.c b/linux-user/syscall.c
+index 9e31ea7..19630ea 100644
+--- a/linux-user/syscall.c
++++ b/linux-user/syscall.c
+@@ -4312,13 +4312,15 @@ static void *clone_func(void *arg)
+ {
+     new_thread_info *info = arg;
+     CPUArchState *env;
++    CPUState *cpu;
+     TaskState *ts;
+ 
+     env = info->env;
++    cpu = ENV_GET_CPU(env);
+     thread_env = env;
+     ts = (TaskState *)thread_env->opaque;
+     info->tid = gettid();
+-    env->host_tid = info->tid;
++    cpu->host_tid = info->tid;
+     task_settid(ts);
+     if (info->child_tidptr)
+         put_user_u32(info->tid, info->child_tidptr);

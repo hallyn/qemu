@@ -25,9 +25,9 @@ Date:   Fri Feb 22 18:10:03 2013 +0000
 
 Index: qemu/cpu-exec.c
 ===================================================================
---- qemu.orig/cpu-exec.c	2013-03-05 11:16:40.790263721 -0600
-+++ qemu/cpu-exec.c	2013-03-05 11:16:40.782263721 -0600
-@@ -64,6 +64,12 @@ static inline tcg_target_ulong cpu_tb_ex
+--- qemu.orig/cpu-exec.c	2013-03-05 16:51:55.169923144 -0600
++++ qemu/cpu-exec.c	2013-03-05 16:51:55.161923144 -0600
+@@ -66,6 +66,12 @@ static inline tcg_target_ulong cpu_tb_ex
          TranslationBlock *tb = (TranslationBlock *)(next_tb & ~TB_EXIT_MASK);
          cpu_pc_from_tb(env, tb);
      }
@@ -40,7 +40,7 @@ Index: qemu/cpu-exec.c
      return next_tb;
  }
  
-@@ -609,7 +615,20 @@ int cpu_exec(CPUArchState *env)
+@@ -610,7 +616,20 @@ int cpu_exec(CPUArchState *env)
                      tc_ptr = tb->tc_ptr;
                      /* execute the generated code */
                      next_tb = cpu_tb_exec(cpu, tc_ptr);
@@ -62,7 +62,7 @@ Index: qemu/cpu-exec.c
                          /* Instruction counter expired.  */
                          int insns_left;
                          tb = (TranslationBlock *)(next_tb & ~TB_EXIT_MASK);
-@@ -633,6 +652,10 @@ int cpu_exec(CPUArchState *env)
+@@ -634,6 +653,10 @@ int cpu_exec(CPUArchState *env)
                              next_tb = 0;
                              cpu_loop_exit(env);
                          }
@@ -72,26 +72,24 @@ Index: qemu/cpu-exec.c
 +                        break;
                      }
                  }
-                 env->current_tb = NULL;
+                 cpu->current_tb = NULL;
 Index: qemu/exec.c
 ===================================================================
---- qemu.orig/exec.c	2013-03-05 11:16:40.790263721 -0600
-+++ qemu/exec.c	2013-03-05 11:16:40.782263721 -0600
-@@ -492,8 +492,9 @@ void cpu_reset_interrupt(CPUArchState *e
+--- qemu.orig/exec.c	2013-03-05 16:51:55.169923144 -0600
++++ qemu/exec.c	2013-03-05 16:51:55.161923144 -0600
+@@ -495,7 +495,7 @@ void cpu_exit(CPUArchState *env)
+     CPUState *cpu = ENV_GET_CPU(env);
  
- void cpu_exit(CPUArchState *env)
- {
-+    CPUState *cpu = ENV_GET_CPU(env);
-     env->exit_request = 1;
--    cpu_unlink_tb(env);
+     cpu->exit_request = 1;
+-    cpu_unlink_tb(cpu);
 +    cpu->tcg_exit_req = 1;
  }
  
  void cpu_abort(CPUArchState *env, const char *fmt, ...)
 Index: qemu/include/exec/gen-icount.h
 ===================================================================
---- qemu.orig/include/exec/gen-icount.h	2013-03-05 11:16:40.790263721 -0600
-+++ qemu/include/exec/gen-icount.h	2013-03-05 11:16:40.782263721 -0600
+--- qemu.orig/include/exec/gen-icount.h	2013-03-05 16:51:55.169923144 -0600
++++ qemu/include/exec/gen-icount.h	2013-03-05 16:51:55.161923144 -0600
 @@ -7,10 +7,19 @@
  
  static TCGArg *icount_arg;
@@ -124,29 +122,29 @@ Index: qemu/include/exec/gen-icount.h
          gen_set_label(icount_label);
 Index: qemu/include/qom/cpu.h
 ===================================================================
---- qemu.orig/include/qom/cpu.h	2013-03-05 11:16:40.790263721 -0600
-+++ qemu/include/qom/cpu.h	2013-03-05 11:16:40.782263721 -0600
-@@ -68,6 +68,8 @@ struct kvm_run;
+--- qemu.orig/include/qom/cpu.h	2013-03-05 16:51:55.169923144 -0600
++++ qemu/include/qom/cpu.h	2013-03-05 16:51:55.161923144 -0600
+@@ -71,6 +71,8 @@ struct kvm_run;
   * @created: Indicates whether the CPU thread has been successfully created.
   * @stop: Indicates a pending stop request.
   * @stopped: Indicates the CPU has been artificially stopped.
 + * @tcg_exit_req: Set to force TCG to stop executing linked TBs for this
 + *           CPU and return to its top level loop.
+  * @env_ptr: Pointer to subclass-specific CPUArchState field.
+  * @current_tb: Currently executing TB.
   * @kvm_fd: vCPU file descriptor for KVM.
-  *
-  * State of one CPU core or thread.
-@@ -92,6 +94,7 @@ struct CPUState {
-     bool created;
+@@ -100,6 +102,7 @@ struct CPUState {
      bool stop;
      bool stopped;
+     volatile sig_atomic_t exit_request;
 +    volatile sig_atomic_t tcg_exit_req;
  
-     int kvm_fd;
-     bool kvm_vcpu_dirty;
+     void *env_ptr; /* CPUArchState */
+     struct TranslationBlock *current_tb;
 Index: qemu/tcg/tcg.h
 ===================================================================
---- qemu.orig/tcg/tcg.h	2013-03-05 11:16:40.790263721 -0600
-+++ qemu/tcg/tcg.h	2013-03-05 11:16:40.782263721 -0600
+--- qemu.orig/tcg/tcg.h	2013-03-05 16:51:55.169923144 -0600
++++ qemu/tcg/tcg.h	2013-03-05 16:51:55.161923144 -0600
 @@ -686,6 +686,10 @@ extern uint8_t *code_gen_prologue;
   *        would hit zero midway through it. In this case the next-TB pointer
   *        returned is the TB we were about to execute, and the caller must
@@ -168,24 +166,22 @@ Index: qemu/tcg/tcg.h
  # define tcg_qemu_tb_exec(env, tb_ptr) \
 Index: qemu/translate-all.c
 ===================================================================
---- qemu.orig/translate-all.c	2013-03-05 11:16:40.790263721 -0600
-+++ qemu/translate-all.c	2013-03-05 11:16:40.786263721 -0600
-@@ -1476,7 +1476,7 @@ static void tcg_handle_interrupt(CPUArch
+--- qemu.orig/translate-all.c	2013-03-05 16:51:55.169923144 -0600
++++ qemu/translate-all.c	2013-03-05 16:51:55.165923144 -0600
+@@ -1484,7 +1484,7 @@ static void tcg_handle_interrupt(CPUArch
              cpu_abort(env, "Raised interrupt while not in I/O function");
          }
      } else {
--        cpu_unlink_tb(env);
+-        cpu_unlink_tb(cpu);
 +        cpu->tcg_exit_req = 1;
      }
  }
  
-@@ -1616,8 +1616,9 @@ void dump_exec_info(FILE *f, fprintf_fun
+@@ -1627,7 +1627,7 @@ void cpu_interrupt(CPUArchState *env, in
+     CPUState *cpu = ENV_GET_CPU(env);
  
- void cpu_interrupt(CPUArchState *env, int mask)
- {
-+    CPUState *cpu = ENV_GET_CPU(env);
      env->interrupt_request |= mask;
--    cpu_unlink_tb(env);
+-    cpu_unlink_tb(cpu);
 +    cpu->tcg_exit_req = 1;
  }
  

@@ -14,8 +14,8 @@ Date:   Fri Feb 22 18:10:05 2013 +0000
 
 Index: qemu/include/exec/gen-icount.h
 ===================================================================
---- qemu.orig/include/exec/gen-icount.h	2013-03-05 11:16:43.558263674 -0600
-+++ qemu/include/exec/gen-icount.h	2013-03-05 11:16:43.526263674 -0600
+--- qemu.orig/include/exec/gen-icount.h	2013-03-05 16:51:59.025923078 -0600
++++ qemu/include/exec/gen-icount.h	2013-03-05 16:51:58.997923079 -0600
 @@ -9,7 +9,7 @@ static TCGArg *icount_arg;
  static int icount_label;
  static int exitreq_label;
@@ -36,8 +36,8 @@ Index: qemu/include/exec/gen-icount.h
      tcg_gen_exit_tb((tcg_target_long)tb + TB_EXIT_REQUESTED);
 Index: qemu/target-alpha/translate.c
 ===================================================================
---- qemu.orig/target-alpha/translate.c	2013-03-05 11:16:43.558263674 -0600
-+++ qemu/target-alpha/translate.c	2013-03-05 11:16:43.530263674 -0600
+--- qemu.orig/target-alpha/translate.c	2013-03-05 16:51:59.025923078 -0600
++++ qemu/target-alpha/translate.c	2013-03-05 16:51:58.997923079 -0600
 @@ -3395,7 +3395,7 @@ static inline void gen_intermediate_code
      if (max_insns == 0)
          max_insns = CF_COUNT_MASK;
@@ -58,8 +58,8 @@ Index: qemu/target-alpha/translate.c
          j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
 Index: qemu/target-arm/translate.c
 ===================================================================
---- qemu.orig/target-arm/translate.c	2013-03-05 11:16:43.558263674 -0600
-+++ qemu/target-arm/translate.c	2013-03-05 11:16:43.534263674 -0600
+--- qemu.orig/target-arm/translate.c	2013-03-05 16:51:59.025923078 -0600
++++ qemu/target-arm/translate.c	2013-03-05 16:51:59.001923079 -0600
 @@ -9781,7 +9781,7 @@ static inline void gen_intermediate_code
      if (max_insns == 0)
          max_insns = CF_COUNT_MASK;
@@ -80,8 +80,8 @@ Index: qemu/target-arm/translate.c
  #ifdef DEBUG_DISAS
 Index: qemu/target-cris/translate.c
 ===================================================================
---- qemu.orig/target-cris/translate.c	2013-03-05 11:16:43.558263674 -0600
-+++ qemu/target-cris/translate.c	2013-03-05 11:16:43.538263674 -0600
+--- qemu.orig/target-cris/translate.c	2013-03-05 16:51:59.025923078 -0600
++++ qemu/target-cris/translate.c	2013-03-05 16:51:59.005923079 -0600
 @@ -3292,7 +3292,7 @@ gen_intermediate_code_internal(CPUCRISSt
          max_insns = CF_COUNT_MASK;
      }
@@ -102,8 +102,8 @@ Index: qemu/target-cris/translate.c
          j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
 Index: qemu/target-i386/translate.c
 ===================================================================
---- qemu.orig/target-i386/translate.c	2013-03-05 11:16:43.558263674 -0600
-+++ qemu/target-i386/translate.c	2013-03-05 11:16:43.538263674 -0600
+--- qemu.orig/target-i386/translate.c	2013-03-05 16:51:59.025923078 -0600
++++ qemu/target-i386/translate.c	2013-03-05 16:51:59.009923079 -0600
 @@ -7972,7 +7972,7 @@ static inline void gen_intermediate_code
      if (max_insns == 0)
          max_insns = CF_COUNT_MASK;
@@ -124,8 +124,8 @@ Index: qemu/target-i386/translate.c
      if (search_pc) {
 Index: qemu/target-lm32/translate.c
 ===================================================================
---- qemu.orig/target-lm32/translate.c	2013-03-05 11:16:43.558263674 -0600
-+++ qemu/target-lm32/translate.c	2013-03-05 11:16:43.542263674 -0600
+--- qemu.orig/target-lm32/translate.c	2013-03-05 16:51:59.025923078 -0600
++++ qemu/target-lm32/translate.c	2013-03-05 16:51:59.009923079 -0600
 @@ -1042,7 +1042,7 @@ static void gen_intermediate_code_intern
          max_insns = CF_COUNT_MASK;
      }
@@ -146,8 +146,8 @@ Index: qemu/target-lm32/translate.c
          j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
 Index: qemu/target-m68k/translate.c
 ===================================================================
---- qemu.orig/target-m68k/translate.c	2013-03-05 11:16:43.558263674 -0600
-+++ qemu/target-m68k/translate.c	2013-03-05 11:16:43.542263674 -0600
+--- qemu.orig/target-m68k/translate.c	2013-03-05 16:51:59.025923078 -0600
++++ qemu/target-m68k/translate.c	2013-03-05 16:51:59.009923079 -0600
 @@ -2999,7 +2999,7 @@ gen_intermediate_code_internal(CPUM68KSt
      if (max_insns == 0)
          max_insns = CF_COUNT_MASK;
@@ -168,8 +168,8 @@ Index: qemu/target-m68k/translate.c
  #ifdef DEBUG_DISAS
 Index: qemu/target-microblaze/translate.c
 ===================================================================
---- qemu.orig/target-microblaze/translate.c	2013-03-05 11:16:43.558263674 -0600
-+++ qemu/target-microblaze/translate.c	2013-03-05 11:16:43.542263674 -0600
+--- qemu.orig/target-microblaze/translate.c	2013-03-05 16:51:59.025923078 -0600
++++ qemu/target-microblaze/translate.c	2013-03-05 16:51:59.013923079 -0600
 @@ -1772,7 +1772,7 @@ gen_intermediate_code_internal(CPUMBStat
      if (max_insns == 0)
          max_insns = CF_COUNT_MASK;
@@ -190,8 +190,8 @@ Index: qemu/target-microblaze/translate.c
          j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
 Index: qemu/target-mips/translate.c
 ===================================================================
---- qemu.orig/target-mips/translate.c	2013-03-05 11:16:43.558263674 -0600
-+++ qemu/target-mips/translate.c	2013-03-05 11:16:43.546263674 -0600
+--- qemu.orig/target-mips/translate.c	2013-03-05 16:51:59.025923078 -0600
++++ qemu/target-mips/translate.c	2013-03-05 16:51:59.013923079 -0600
 @@ -15604,7 +15604,7 @@ gen_intermediate_code_internal (CPUMIPSS
      if (max_insns == 0)
          max_insns = CF_COUNT_MASK;
@@ -212,8 +212,8 @@ Index: qemu/target-mips/translate.c
          j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
 Index: qemu/target-openrisc/translate.c
 ===================================================================
---- qemu.orig/target-openrisc/translate.c	2013-03-05 11:16:43.558263674 -0600
-+++ qemu/target-openrisc/translate.c	2013-03-05 11:16:43.546263674 -0600
+--- qemu.orig/target-openrisc/translate.c	2013-03-05 16:51:59.025923078 -0600
++++ qemu/target-openrisc/translate.c	2013-03-05 16:51:59.013923079 -0600
 @@ -1698,7 +1698,7 @@ static inline void gen_intermediate_code
          max_insns = CF_COUNT_MASK;
      }
@@ -234,8 +234,8 @@ Index: qemu/target-openrisc/translate.c
          j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
 Index: qemu/target-ppc/translate.c
 ===================================================================
---- qemu.orig/target-ppc/translate.c	2013-03-05 11:16:43.558263674 -0600
-+++ qemu/target-ppc/translate.c	2013-03-05 11:16:43.546263674 -0600
+--- qemu.orig/target-ppc/translate.c	2013-03-05 16:51:59.025923078 -0600
++++ qemu/target-ppc/translate.c	2013-03-05 16:51:59.017923079 -0600
 @@ -9654,7 +9654,7 @@ static inline void gen_intermediate_code
      if (max_insns == 0)
          max_insns = CF_COUNT_MASK;
@@ -256,8 +256,8 @@ Index: qemu/target-ppc/translate.c
          j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
 Index: qemu/target-s390x/translate.c
 ===================================================================
---- qemu.orig/target-s390x/translate.c	2013-03-05 11:16:43.558263674 -0600
-+++ qemu/target-s390x/translate.c	2013-03-05 11:16:43.550263674 -0600
+--- qemu.orig/target-s390x/translate.c	2013-03-05 16:51:59.025923078 -0600
++++ qemu/target-s390x/translate.c	2013-03-05 16:51:59.017923079 -0600
 @@ -4770,7 +4770,7 @@ static inline void gen_intermediate_code
          max_insns = CF_COUNT_MASK;
      }
@@ -278,8 +278,8 @@ Index: qemu/target-s390x/translate.c
          j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
 Index: qemu/target-sh4/translate.c
 ===================================================================
---- qemu.orig/target-sh4/translate.c	2013-03-05 11:16:43.558263674 -0600
-+++ qemu/target-sh4/translate.c	2013-03-05 11:16:43.550263674 -0600
+--- qemu.orig/target-sh4/translate.c	2013-03-05 16:51:59.025923078 -0600
++++ qemu/target-sh4/translate.c	2013-03-05 16:51:59.017923079 -0600
 @@ -1985,7 +1985,7 @@ gen_intermediate_code_internal(CPUSH4Sta
      max_insns = tb->cflags & CF_COUNT_MASK;
      if (max_insns == 0)
@@ -300,8 +300,8 @@ Index: qemu/target-sh4/translate.c
          i = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
 Index: qemu/target-sparc/translate.c
 ===================================================================
---- qemu.orig/target-sparc/translate.c	2013-03-05 11:16:43.558263674 -0600
-+++ qemu/target-sparc/translate.c	2013-03-05 11:16:43.550263674 -0600
+--- qemu.orig/target-sparc/translate.c	2013-03-05 16:51:59.025923078 -0600
++++ qemu/target-sparc/translate.c	2013-03-05 16:51:59.017923079 -0600
 @@ -5263,7 +5263,7 @@ static inline void gen_intermediate_code
      max_insns = tb->cflags & CF_COUNT_MASK;
      if (max_insns == 0)
@@ -322,8 +322,8 @@ Index: qemu/target-sparc/translate.c
          j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
 Index: qemu/target-unicore32/translate.c
 ===================================================================
---- qemu.orig/target-unicore32/translate.c	2013-03-05 11:16:43.558263674 -0600
-+++ qemu/target-unicore32/translate.c	2013-03-05 11:16:43.550263674 -0600
+--- qemu.orig/target-unicore32/translate.c	2013-03-05 16:51:59.025923078 -0600
++++ qemu/target-unicore32/translate.c	2013-03-05 16:51:59.017923079 -0600
 @@ -1982,7 +1982,7 @@ static inline void gen_intermediate_code
      }
  #endif
@@ -344,8 +344,8 @@ Index: qemu/target-unicore32/translate.c
  #ifdef DEBUG_DISAS
 Index: qemu/target-xtensa/translate.c
 ===================================================================
---- qemu.orig/target-xtensa/translate.c	2013-03-05 11:16:43.558263674 -0600
-+++ qemu/target-xtensa/translate.c	2013-03-05 11:16:43.550263674 -0600
+--- qemu.orig/target-xtensa/translate.c	2013-03-05 16:51:59.025923078 -0600
++++ qemu/target-xtensa/translate.c	2013-03-05 16:51:59.017923079 -0600
 @@ -2924,7 +2924,7 @@ static void gen_intermediate_code_intern
          dc.next_icount = tcg_temp_local_new_i32();
      }

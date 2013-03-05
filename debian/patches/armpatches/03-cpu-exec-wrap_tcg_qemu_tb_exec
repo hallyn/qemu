@@ -26,9 +26,9 @@ Date:   Fri Feb 22 18:10:02 2013 +0000
 
 Index: qemu/cpu-exec.c
 ===================================================================
---- qemu.orig/cpu-exec.c	2013-03-05 11:16:39.390263744 -0600
-+++ qemu/cpu-exec.c	2013-03-05 11:16:39.386263744 -0600
-@@ -51,12 +51,28 @@ void cpu_resume_from_signal(CPUArchState
+--- qemu.orig/cpu-exec.c	2013-03-05 16:51:53.069923179 -0600
++++ qemu/cpu-exec.c	2013-03-05 16:51:53.065923179 -0600
+@@ -53,13 +53,28 @@ void cpu_resume_from_signal(CPUArchState
  }
  #endif
  
@@ -53,19 +53,19 @@ Index: qemu/cpu-exec.c
  static void cpu_exec_nocache(CPUArchState *env, int max_cycles,
                               TranslationBlock *orig_tb)
  {
+     CPUState *cpu = ENV_GET_CPU(env);
 -    tcg_target_ulong next_tb;
-+    CPUState *cpu = ENV_GET_CPU(env);
      TranslationBlock *tb;
  
      /* Should never happen.
-@@ -68,14 +84,9 @@ static void cpu_exec_nocache(CPUArchStat
+@@ -71,14 +86,8 @@ static void cpu_exec_nocache(CPUArchStat
                       max_cycles);
-     env->current_tb = tb;
+     cpu->current_tb = tb;
      /* execute the generated code */
 -    next_tb = tcg_qemu_tb_exec(env, tb->tc_ptr);
 +    cpu_tb_exec(cpu, tb->tc_ptr);
-     env->current_tb = NULL;
- 
+     cpu->current_tb = NULL;
+-
 -    if ((next_tb & TB_EXIT_MASK) == TB_EXIT_ICOUNT_EXPIRED) {
 -        /* Restore PC.  This may happen if async event occurs before
 -           the TB starts executing.  */
@@ -74,8 +74,8 @@ Index: qemu/cpu-exec.c
      tb_phys_invalidate(tb, -1);
      tb_free(tb);
  }
-@@ -597,13 +608,11 @@ int cpu_exec(CPUArchState *env)
-                 if (likely(!env->exit_request)) {
+@@ -600,13 +609,11 @@ int cpu_exec(CPUArchState *env)
+                 if (likely(!cpu->exit_request)) {
                      tc_ptr = tb->tc_ptr;
                      /* execute the generated code */
 -                    next_tb = tcg_qemu_tb_exec(env, tc_ptr);

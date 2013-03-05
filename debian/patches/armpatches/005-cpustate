@@ -1,0 +1,76 @@
+commit 907a5e32f293a0af8875973d4cce12b96bea5bae
+Author: Andreas Färber <afaerber@suse.de>
+Date:   Thu Jan 17 09:16:15 2013 +0100
+
+    cputlb: Pass CPUState to cpu_unlink_tb()
+    
+    CPUArchState is no longer needed.
+    
+    Signed-off-by: Andreas Färber <afaerber@suse.de>
+
+diff --git a/exec.c b/exec.c
+index dbb893a..a41bcb8 100644
+--- a/exec.c
++++ b/exec.c
+@@ -495,7 +495,7 @@ void cpu_exit(CPUArchState *env)
+     CPUState *cpu = ENV_GET_CPU(env);
+ 
+     cpu->exit_request = 1;
+-    cpu_unlink_tb(env);
++    cpu_unlink_tb(cpu);
+ }
+ 
+ void cpu_abort(CPUArchState *env, const char *fmt, ...)
+diff --git a/translate-all.c b/translate-all.c
+index 52128aa..b50fb89 100644
+--- a/translate-all.c
++++ b/translate-all.c
+@@ -1416,13 +1416,12 @@ void tb_invalidate_phys_addr(hwaddr addr)
+ }
+ #endif /* TARGET_HAS_ICE && !defined(CONFIG_USER_ONLY) */
+ 
+-void cpu_unlink_tb(CPUArchState *env)
++void cpu_unlink_tb(CPUState *cpu)
+ {
+     /* FIXME: TB unchaining isn't SMP safe.  For now just ignore the
+        problem and hope the cpu will stop of its own accord.  For userspace
+        emulation this often isn't actually as bad as it sounds.  Often
+        signals are used primarily to interrupt blocking syscalls.  */
+-    CPUState *cpu = ENV_GET_CPU(env);
+     TranslationBlock *tb;
+     static spinlock_t interrupt_lock = SPIN_LOCK_UNLOCKED;
+ 
+@@ -1476,7 +1475,7 @@ static void tcg_handle_interrupt(CPUArchState *env, int mask)
+             cpu_abort(env, "Raised interrupt while not in I/O function");
+         }
+     } else {
+-        cpu_unlink_tb(env);
++        cpu_unlink_tb(cpu);
+     }
+ }
+ 
+@@ -1624,8 +1623,10 @@ void dump_exec_info(FILE *f, fprintf_function cpu_fprintf)
+ 
+ void cpu_interrupt(CPUArchState *env, int mask)
+ {
++    CPUState *cpu = ENV_GET_CPU(env);
++
+     env->interrupt_request |= mask;
+-    cpu_unlink_tb(env);
++    cpu_unlink_tb(cpu);
+ }
+ 
+ /*
+diff --git a/translate-all.h b/translate-all.h
+index b181fb4..5c38819 100644
+--- a/translate-all.h
++++ b/translate-all.h
+@@ -28,7 +28,7 @@
+ 
+ /* translate-all.c */
+ void tb_invalidate_phys_page_fast(tb_page_addr_t start, int len);
+-void cpu_unlink_tb(CPUArchState *env);
++void cpu_unlink_tb(CPUState *cpu);
+ void tb_check_watchpoint(CPUArchState *env);
+ 
+ #endif /* TRANSLATE_ALL_H */

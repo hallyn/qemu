@@ -1,0 +1,341 @@
+commit d77953b94ff20868b21796ee22ca57baa1cfc941
+Author: Andreas Färber <afaerber@suse.de>
+Date:   Wed Jan 16 19:29:31 2013 +0100
+
+    cpu: Move current_tb field to CPUState
+    
+    Explictly NULL it on CPU reset since it was located before breakpoints.
+    
+    Change vapic_report_tpr_access() argument to CPUState. This also
+    resolves the use of void* for cpu.h independence.
+    Change vAPIC patch_instruction() argument to X86CPU.
+    
+    Signed-off-by: Andreas Färber <afaerber@suse.de>
+
+diff --git a/cpu-exec.c b/cpu-exec.c
+index cf103f2..9fcfe9e 100644
+--- a/cpu-exec.c
++++ b/cpu-exec.c
+@@ -32,7 +32,9 @@ bool qemu_cpu_has_work(CPUState *cpu)
+ 
+ void cpu_loop_exit(CPUArchState *env)
+ {
+-    env->current_tb = NULL;
++    CPUState *cpu = ENV_GET_CPU(env);
++
++    cpu->current_tb = NULL;
+     longjmp(env->jmp_env, 1);
+ }
+ 
+@@ -54,6 +56,7 @@ void cpu_resume_from_signal(CPUArchState *env, void *puc)
+ static void cpu_exec_nocache(CPUArchState *env, int max_cycles,
+                              TranslationBlock *orig_tb)
+ {
++    CPUState *cpu = ENV_GET_CPU(env);
+     tcg_target_ulong next_tb;
+     TranslationBlock *tb;
+ 
+@@ -64,10 +67,10 @@ static void cpu_exec_nocache(CPUArchState *env, int max_cycles,
+ 
+     tb = tb_gen_code(env, orig_tb->pc, orig_tb->cs_base, orig_tb->flags,
+                      max_cycles);
+-    env->current_tb = tb;
++    cpu->current_tb = tb;
+     /* execute the generated code */
+     next_tb = tcg_qemu_tb_exec(env, tb->tc_ptr);
+-    env->current_tb = NULL;
++    cpu->current_tb = NULL;
+ 
+     if ((next_tb & 3) == 2) {
+         /* Restore PC.  This may happen if async event occurs before
+@@ -589,7 +592,7 @@ int cpu_exec(CPUArchState *env)
+                    TB, but before it is linked into a potentially
+                    infinite loop and becomes env->current_tb. Avoid
+                    starting execution if there is a pending interrupt. */
+-                env->current_tb = tb;
++                cpu->current_tb = tb;
+                 barrier();
+                 if (likely(!cpu->exit_request)) {
+                     tc_ptr = tb->tc_ptr;
+@@ -623,7 +626,7 @@ int cpu_exec(CPUArchState *env)
+                         }
+                     }
+                 }
+-                env->current_tb = NULL;
++                cpu->current_tb = NULL;
+                 /* reset soft MMU for next block (it can currently
+                    only be set by a memory fault) */
+             } /* for(;;) */
+diff --git a/cputlb.c b/cputlb.c
+index 88239c4..aba7e44 100644
+--- a/cputlb.c
++++ b/cputlb.c
+@@ -54,6 +54,7 @@ static const CPUTLBEntry s_cputlb_empty_entry = {
+  */
+ void tlb_flush(CPUArchState *env, int flush_global)
+ {
++    CPUState *cpu = ENV_GET_CPU(env);
+     int i;
+ 
+ #if defined(DEBUG_TLB)
+@@ -61,7 +62,7 @@ void tlb_flush(CPUArchState *env, int flush_global)
+ #endif
+     /* must reset current TB so that interrupts cannot modify the
+        links while we are modifying them */
+-    env->current_tb = NULL;
++    cpu->current_tb = NULL;
+ 
+     for (i = 0; i < CPU_TLB_SIZE; i++) {
+         int mmu_idx;
+@@ -92,6 +93,7 @@ static inline void tlb_flush_entry(CPUTLBEntry *tlb_entry, target_ulong addr)
+ 
+ void tlb_flush_page(CPUArchState *env, target_ulong addr)
+ {
++    CPUState *cpu = ENV_GET_CPU(env);
+     int i;
+     int mmu_idx;
+ 
+@@ -110,7 +112,7 @@ void tlb_flush_page(CPUArchState *env, target_ulong addr)
+     }
+     /* must reset current TB so that interrupts cannot modify the
+        links while we are modifying them */
+-    env->current_tb = NULL;
++    cpu->current_tb = NULL;
+ 
+     addr &= TARGET_PAGE_MASK;
+     i = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
+diff --git a/hw/apic_common.c b/hw/apic_common.c
+index 6e1b1e0..d8c9810 100644
+--- a/hw/apic_common.c
++++ b/hw/apic_common.c
+@@ -103,7 +103,7 @@ void apic_handle_tpr_access_report(DeviceState *d, target_ulong ip,
+ {
+     APICCommonState *s = DO_UPCAST(APICCommonState, busdev.qdev, d);
+ 
+-    vapic_report_tpr_access(s->vapic, &s->cpu->env, ip, access);
++    vapic_report_tpr_access(s->vapic, CPU(s->cpu), ip, access);
+ }
+ 
+ void apic_report_irq_delivered(int delivered)
+diff --git a/hw/apic_internal.h b/hw/apic_internal.h
+index dcbbfd4..9265e52 100644
+--- a/hw/apic_internal.h
++++ b/hw/apic_internal.h
+@@ -143,7 +143,7 @@ bool apic_next_timer(APICCommonState *s, int64_t current_time);
+ void apic_enable_tpr_access_reporting(DeviceState *d, bool enable);
+ void apic_enable_vapic(DeviceState *d, hwaddr paddr);
+ 
+-void vapic_report_tpr_access(DeviceState *dev, void *cpu, target_ulong ip,
++void vapic_report_tpr_access(DeviceState *dev, CPUState *cpu, target_ulong ip,
+                              TPRAccess access);
+ 
+ #endif /* !QEMU_APIC_INTERNAL_H */
+diff --git a/hw/kvmvapic.c b/hw/kvmvapic.c
+index 1b5f416..9265baf 100644
+--- a/hw/kvmvapic.c
++++ b/hw/kvmvapic.c
+@@ -382,8 +382,10 @@ static void patch_call(VAPICROMState *s, CPUX86State *env, target_ulong ip,
+     cpu_memory_rw_debug(env, ip + 1, (void *)&offset, sizeof(offset), 1);
+ }
+ 
+-static void patch_instruction(VAPICROMState *s, CPUX86State *env, target_ulong ip)
++static void patch_instruction(VAPICROMState *s, X86CPU *cpu, target_ulong ip)
+ {
++    CPUState *cs = CPU(cpu);
++    CPUX86State *env = &cpu->env;
+     VAPICHandlers *handlers;
+     uint8_t opcode[2];
+     uint32_t imm32;
+@@ -439,17 +441,18 @@ static void patch_instruction(VAPICROMState *s, CPUX86State *env, target_ulong i
+     resume_all_vcpus();
+ 
+     if (!kvm_enabled()) {
+-        env->current_tb = NULL;
++        cs->current_tb = NULL;
+         tb_gen_code(env, current_pc, current_cs_base, current_flags, 1);
+         cpu_resume_from_signal(env, NULL);
+     }
+ }
+ 
+-void vapic_report_tpr_access(DeviceState *dev, void *cpu, target_ulong ip,
++void vapic_report_tpr_access(DeviceState *dev, CPUState *cs, target_ulong ip,
+                              TPRAccess access)
+ {
+     VAPICROMState *s = DO_UPCAST(VAPICROMState, busdev.qdev, dev);
+-    CPUX86State *env = cpu;
++    X86CPU *cpu = X86_CPU(cs);
++    CPUX86State *env = &cpu->env;
+ 
+     cpu_synchronize_state(env);
+ 
+@@ -465,7 +468,7 @@ void vapic_report_tpr_access(DeviceState *dev, void *cpu, target_ulong ip,
+     if (vapic_enable(s, env) < 0) {
+         return;
+     }
+-    patch_instruction(s, env, ip);
++    patch_instruction(s, cpu, ip);
+ }
+ 
+ typedef struct VAPICEnableTPRReporting {
+diff --git a/include/exec/cpu-defs.h b/include/exec/cpu-defs.h
+index ca39f05..ae64590 100644
+--- a/include/exec/cpu-defs.h
++++ b/include/exec/cpu-defs.h
+@@ -148,7 +148,6 @@ typedef struct CPUWatchpoint {
+ 
+ #define CPU_TEMP_BUF_NLONGS 128
+ #define CPU_COMMON                                                      \
+-    struct TranslationBlock *current_tb; /* currently executing TB  */  \
+     /* soft mmu support */                                              \
+     /* in order to avoid passing too many arguments to the MMIO         \
+        helpers, we store some rarely used information in the CPU        \
+diff --git a/include/exec/exec-all.h b/include/exec/exec-all.h
+index f685c28..e856191 100644
+--- a/include/exec/exec-all.h
++++ b/include/exec/exec-all.h
+@@ -404,11 +404,13 @@ extern volatile sig_atomic_t exit_request;
+    instruction of a TB so that interrupts take effect immediately.  */
+ static inline int can_do_io(CPUArchState *env)
+ {
++    CPUState *cpu = ENV_GET_CPU(env);
++
+     if (!use_icount) {
+         return 1;
+     }
+     /* If not executing code then assume we are ok.  */
+-    if (!env->current_tb) {
++    if (cpu->current_tb == NULL) {
+         return 1;
+     }
+     return env->can_do_io != 0;
+diff --git a/include/qom/cpu.h b/include/qom/cpu.h
+index 42f3f34..c25a997 100644
+--- a/include/qom/cpu.h
++++ b/include/qom/cpu.h
+@@ -71,6 +71,7 @@ struct kvm_run;
+  * @created: Indicates whether the CPU thread has been successfully created.
+  * @stop: Indicates a pending stop request.
+  * @stopped: Indicates the CPU has been artificially stopped.
++ * @current_tb: Currently executing TB.
+  * @kvm_fd: vCPU file descriptor for KVM.
+  *
+  * State of one CPU core or thread.
+@@ -99,6 +100,8 @@ struct CPUState {
+     bool stopped;
+     volatile sig_atomic_t exit_request;
+ 
++    struct TranslationBlock *current_tb;
++
+     int kvm_fd;
+     bool kvm_vcpu_dirty;
+     struct KVMState *kvm_state;
+diff --git a/qom/cpu.c b/qom/cpu.c
+index 7d8c675..0a2194d 100644
+--- a/qom/cpu.c
++++ b/qom/cpu.c
+@@ -33,6 +33,7 @@ void cpu_reset(CPUState *cpu)
+ static void cpu_common_reset(CPUState *cpu)
+ {
+     cpu->exit_request = 0;
++    cpu->current_tb = NULL;
+ }
+ 
+ ObjectClass *cpu_class_by_name(const char *typename, const char *cpu_model)
+diff --git a/translate-all.c b/translate-all.c
+index efeb247..52128aa 100644
+--- a/translate-all.c
++++ b/translate-all.c
+@@ -998,6 +998,7 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
+ {
+     TranslationBlock *tb, *tb_next, *saved_tb;
+     CPUArchState *env = cpu_single_env;
++    CPUState *cpu = NULL;
+     tb_page_addr_t tb_start, tb_end;
+     PageDesc *p;
+     int n;
+@@ -1020,6 +1021,9 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
+         /* build code bitmap */
+         build_page_bitmap(p);
+     }
++    if (env != NULL) {
++        cpu = ENV_GET_CPU(env);
++    }
+ 
+     /* we remove all the TBs in the range [start, end[ */
+     /* XXX: see if in some cases it could be faster to invalidate all
+@@ -1066,14 +1070,14 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
+             /* we need to do that to handle the case where a signal
+                occurs while doing tb_phys_invalidate() */
+             saved_tb = NULL;
+-            if (env) {
+-                saved_tb = env->current_tb;
+-                env->current_tb = NULL;
++            if (cpu != NULL) {
++                saved_tb = cpu->current_tb;
++                cpu->current_tb = NULL;
+             }
+             tb_phys_invalidate(tb, -1);
+-            if (env) {
+-                env->current_tb = saved_tb;
+-                if (env->interrupt_request && env->current_tb) {
++            if (cpu != NULL) {
++                cpu->current_tb = saved_tb;
++                if (env && env->interrupt_request && cpu->current_tb) {
+                     cpu_interrupt(env, env->interrupt_request);
+                 }
+             }
+@@ -1094,7 +1098,7 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
+         /* we generate a block containing just the instruction
+            modifying the memory. It will ensure that it cannot modify
+            itself */
+-        env->current_tb = NULL;
++        cpu->current_tb = NULL;
+         tb_gen_code(env, current_pc, current_cs_base, current_flags, 1);
+         cpu_resume_from_signal(env, NULL);
+     }
+@@ -1142,6 +1146,7 @@ static void tb_invalidate_phys_page(tb_page_addr_t addr,
+ #ifdef TARGET_HAS_PRECISE_SMC
+     TranslationBlock *current_tb = NULL;
+     CPUArchState *env = cpu_single_env;
++    CPUState *cpu = NULL;
+     int current_tb_modified = 0;
+     target_ulong current_pc = 0;
+     target_ulong current_cs_base = 0;
+@@ -1158,6 +1163,9 @@ static void tb_invalidate_phys_page(tb_page_addr_t addr,
+     if (tb && pc != 0) {
+         current_tb = tb_find_pc(pc);
+     }
++    if (env != NULL) {
++        cpu = ENV_GET_CPU(env);
++    }
+ #endif
+     while (tb != NULL) {
+         n = (uintptr_t)tb & 3;
+@@ -1186,7 +1194,7 @@ static void tb_invalidate_phys_page(tb_page_addr_t addr,
+         /* we generate a block containing just the instruction
+            modifying the memory. It will ensure that it cannot modify
+            itself */
+-        env->current_tb = NULL;
++        cpu->current_tb = NULL;
+         tb_gen_code(env, current_pc, current_cs_base, current_flags, 1);
+         cpu_resume_from_signal(env, puc);
+     }
+@@ -1414,15 +1422,16 @@ void cpu_unlink_tb(CPUArchState *env)
+        problem and hope the cpu will stop of its own accord.  For userspace
+        emulation this often isn't actually as bad as it sounds.  Often
+        signals are used primarily to interrupt blocking syscalls.  */
++    CPUState *cpu = ENV_GET_CPU(env);
+     TranslationBlock *tb;
+     static spinlock_t interrupt_lock = SPIN_LOCK_UNLOCKED;
+ 
+     spin_lock(&interrupt_lock);
+-    tb = env->current_tb;
++    tb = cpu->current_tb;
+     /* if the cpu is currently executing code, we must unlink it and
+        all the potentially executing TB */
+     if (tb) {
+-        env->current_tb = NULL;
++        cpu->current_tb = NULL;
+         tb_reset_jump_recursive(tb);
+     }
+     spin_unlock(&interrupt_lock);
