@@ -16,8 +16,8 @@ Date:   Fri Feb 22 18:10:01 2013 +0000
 
 Index: qemu/target-alpha/cpu-qom.h
 ===================================================================
---- qemu.orig/target-alpha/cpu-qom.h	2013-03-05 11:04:12.478276391 -0600
-+++ qemu/target-alpha/cpu-qom.h	2013-03-05 11:04:12.470276391 -0600
+--- qemu.orig/target-alpha/cpu-qom.h	2013-03-05 11:16:37.802263771 -0600
++++ qemu/target-alpha/cpu-qom.h	2013-03-05 11:16:37.790263771 -0600
 @@ -70,5 +70,6 @@ static inline AlphaCPU *alpha_env_get_cp
  
  #define ENV_GET_CPU(e) CPU(alpha_env_get_cpu(e))
@@ -27,8 +27,8 @@ Index: qemu/target-alpha/cpu-qom.h
  #endif
 Index: qemu/target-arm/cpu-qom.h
 ===================================================================
---- qemu.orig/target-arm/cpu-qom.h	2013-03-05 11:04:12.478276391 -0600
-+++ qemu/target-arm/cpu-qom.h	2013-03-05 11:04:49.778275759 -0600
+--- qemu.orig/target-arm/cpu-qom.h	2013-03-05 11:16:37.802263771 -0600
++++ qemu/target-arm/cpu-qom.h	2013-03-05 11:16:37.790263771 -0600
 @@ -107,6 +107,8 @@ static inline ARMCPU *arm_env_get_cpu(CP
  
  #define ENV_GET_CPU(e) CPU(arm_env_get_cpu(e))
@@ -40,8 +40,8 @@ Index: qemu/target-arm/cpu-qom.h
  
 Index: qemu/target-cris/cpu-qom.h
 ===================================================================
---- qemu.orig/target-cris/cpu-qom.h	2013-03-05 11:04:12.478276391 -0600
-+++ qemu/target-cris/cpu-qom.h	2013-03-05 11:04:12.470276391 -0600
+--- qemu.orig/target-cris/cpu-qom.h	2013-03-05 11:16:37.802263771 -0600
++++ qemu/target-cris/cpu-qom.h	2013-03-05 11:16:37.790263771 -0600
 @@ -66,5 +66,6 @@ static inline CRISCPU *cris_env_get_cpu(
  
  #define ENV_GET_CPU(e) CPU(cris_env_get_cpu(e))
@@ -51,8 +51,8 @@ Index: qemu/target-cris/cpu-qom.h
  #endif
 Index: qemu/target-i386/cpu-qom.h
 ===================================================================
---- qemu.orig/target-i386/cpu-qom.h	2013-03-05 11:04:12.478276391 -0600
-+++ qemu/target-i386/cpu-qom.h	2013-03-05 11:04:12.474276391 -0600
+--- qemu.orig/target-i386/cpu-qom.h	2013-03-05 11:16:37.802263771 -0600
++++ qemu/target-i386/cpu-qom.h	2013-03-05 11:16:37.790263771 -0600
 @@ -75,5 +75,6 @@ static inline X86CPU *x86_env_get_cpu(CP
  /* TODO Drop once ObjectClass::realize is available */
  void x86_cpu_realize(Object *obj, Error **errp);
@@ -62,8 +62,8 @@ Index: qemu/target-i386/cpu-qom.h
  #endif
 Index: qemu/target-lm32/cpu-qom.h
 ===================================================================
---- qemu.orig/target-lm32/cpu-qom.h	2013-03-05 11:04:12.478276391 -0600
-+++ qemu/target-lm32/cpu-qom.h	2013-03-05 11:04:12.474276391 -0600
+--- qemu.orig/target-lm32/cpu-qom.h	2013-03-05 11:16:37.802263771 -0600
++++ qemu/target-lm32/cpu-qom.h	2013-03-05 11:16:37.790263771 -0600
 @@ -67,5 +67,6 @@ static inline LM32CPU *lm32_env_get_cpu(
  
  #define ENV_GET_CPU(e) CPU(lm32_env_get_cpu(e))
@@ -73,8 +73,8 @@ Index: qemu/target-lm32/cpu-qom.h
  #endif
 Index: qemu/target-m68k/cpu-qom.h
 ===================================================================
---- qemu.orig/target-m68k/cpu-qom.h	2013-03-05 11:04:12.478276391 -0600
-+++ qemu/target-m68k/cpu-qom.h	2013-03-05 11:04:12.474276391 -0600
+--- qemu.orig/target-m68k/cpu-qom.h	2013-03-05 11:16:37.802263771 -0600
++++ qemu/target-m68k/cpu-qom.h	2013-03-05 11:16:37.794263771 -0600
 @@ -66,5 +66,6 @@ static inline M68kCPU *m68k_env_get_cpu(
  
  #define ENV_GET_CPU(e) CPU(m68k_env_get_cpu(e))
@@ -84,8 +84,8 @@ Index: qemu/target-m68k/cpu-qom.h
  #endif
 Index: qemu/target-microblaze/cpu-qom.h
 ===================================================================
---- qemu.orig/target-microblaze/cpu-qom.h	2013-03-05 11:04:12.478276391 -0600
-+++ qemu/target-microblaze/cpu-qom.h	2013-03-05 11:04:12.474276391 -0600
+--- qemu.orig/target-microblaze/cpu-qom.h	2013-03-05 11:16:37.802263771 -0600
++++ qemu/target-microblaze/cpu-qom.h	2013-03-05 11:16:37.794263771 -0600
 @@ -66,5 +66,6 @@ static inline MicroBlazeCPU *mb_env_get_
  
  #define ENV_GET_CPU(e) CPU(mb_env_get_cpu(e))
@@ -95,8 +95,8 @@ Index: qemu/target-microblaze/cpu-qom.h
  #endif
 Index: qemu/target-mips/cpu-qom.h
 ===================================================================
---- qemu.orig/target-mips/cpu-qom.h	2013-03-05 11:04:12.478276391 -0600
-+++ qemu/target-mips/cpu-qom.h	2013-03-05 11:04:12.474276391 -0600
+--- qemu.orig/target-mips/cpu-qom.h	2013-03-05 11:16:37.802263771 -0600
++++ qemu/target-mips/cpu-qom.h	2013-03-05 11:16:37.794263771 -0600
 @@ -70,5 +70,6 @@ static inline MIPSCPU *mips_env_get_cpu(
  
  #define ENV_GET_CPU(e) CPU(mips_env_get_cpu(e))
@@ -106,8 +106,8 @@ Index: qemu/target-mips/cpu-qom.h
  #endif
 Index: qemu/target-openrisc/cpu.h
 ===================================================================
---- qemu.orig/target-openrisc/cpu.h	2013-03-05 11:04:12.478276391 -0600
-+++ qemu/target-openrisc/cpu.h	2013-03-05 11:04:12.474276391 -0600
+--- qemu.orig/target-openrisc/cpu.h	2013-03-05 11:16:37.802263771 -0600
++++ qemu/target-openrisc/cpu.h	2013-03-05 11:16:37.794263771 -0600
 @@ -339,6 +339,8 @@ static inline OpenRISCCPU *openrisc_env_
  
  #define ENV_GET_CPU(e) CPU(openrisc_env_get_cpu(e))
@@ -119,8 +119,8 @@ Index: qemu/target-openrisc/cpu.h
  
 Index: qemu/target-ppc/cpu-qom.h
 ===================================================================
---- qemu.orig/target-ppc/cpu-qom.h	2013-03-05 11:04:12.478276391 -0600
-+++ qemu/target-ppc/cpu-qom.h	2013-03-05 11:04:12.474276391 -0600
+--- qemu.orig/target-ppc/cpu-qom.h	2013-03-05 11:16:37.802263771 -0600
++++ qemu/target-ppc/cpu-qom.h	2013-03-05 11:16:37.794263771 -0600
 @@ -76,7 +76,8 @@ static inline PowerPCCPU *ppc_env_get_cp
  
  #define ENV_GET_CPU(e) CPU(ppc_env_get_cpu(e))
@@ -133,8 +133,8 @@ Index: qemu/target-ppc/cpu-qom.h
  #endif
 Index: qemu/target-s390x/cpu-qom.h
 ===================================================================
---- qemu.orig/target-s390x/cpu-qom.h	2013-03-05 11:04:12.478276391 -0600
-+++ qemu/target-s390x/cpu-qom.h	2013-03-05 11:04:12.474276391 -0600
+--- qemu.orig/target-s390x/cpu-qom.h	2013-03-05 11:16:37.802263771 -0600
++++ qemu/target-s390x/cpu-qom.h	2013-03-05 11:16:37.794263771 -0600
 @@ -67,5 +67,6 @@ static inline S390CPU *s390_env_get_cpu(
  
  #define ENV_GET_CPU(e) CPU(s390_env_get_cpu(e))
@@ -144,8 +144,8 @@ Index: qemu/target-s390x/cpu-qom.h
  #endif
 Index: qemu/target-sh4/cpu-qom.h
 ===================================================================
---- qemu.orig/target-sh4/cpu-qom.h	2013-03-05 11:04:12.478276391 -0600
-+++ qemu/target-sh4/cpu-qom.h	2013-03-05 11:04:12.474276391 -0600
+--- qemu.orig/target-sh4/cpu-qom.h	2013-03-05 11:16:37.802263771 -0600
++++ qemu/target-sh4/cpu-qom.h	2013-03-05 11:16:37.794263771 -0600
 @@ -66,5 +66,6 @@ static inline SuperHCPU *sh_env_get_cpu(
  
  #define ENV_GET_CPU(e) CPU(sh_env_get_cpu(e))
@@ -155,8 +155,8 @@ Index: qemu/target-sh4/cpu-qom.h
  #endif
 Index: qemu/target-sparc/cpu-qom.h
 ===================================================================
---- qemu.orig/target-sparc/cpu-qom.h	2013-03-05 11:04:12.478276391 -0600
-+++ qemu/target-sparc/cpu-qom.h	2013-03-05 11:04:12.474276391 -0600
+--- qemu.orig/target-sparc/cpu-qom.h	2013-03-05 11:16:37.802263771 -0600
++++ qemu/target-sparc/cpu-qom.h	2013-03-05 11:16:37.794263771 -0600
 @@ -71,5 +71,6 @@ static inline SPARCCPU *sparc_env_get_cp
  
  #define ENV_GET_CPU(e) CPU(sparc_env_get_cpu(e))
@@ -166,8 +166,8 @@ Index: qemu/target-sparc/cpu-qom.h
  #endif
 Index: qemu/target-unicore32/cpu-qom.h
 ===================================================================
---- qemu.orig/target-unicore32/cpu-qom.h	2013-03-05 11:04:12.478276391 -0600
-+++ qemu/target-unicore32/cpu-qom.h	2013-03-05 11:04:12.474276391 -0600
+--- qemu.orig/target-unicore32/cpu-qom.h	2013-03-05 11:16:37.802263771 -0600
++++ qemu/target-unicore32/cpu-qom.h	2013-03-05 11:16:37.794263771 -0600
 @@ -55,5 +55,6 @@ static inline UniCore32CPU *uc32_env_get
  
  #define ENV_GET_CPU(e) CPU(uc32_env_get_cpu(e))
@@ -177,8 +177,8 @@ Index: qemu/target-unicore32/cpu-qom.h
  #endif
 Index: qemu/target-xtensa/cpu-qom.h
 ===================================================================
---- qemu.orig/target-xtensa/cpu-qom.h	2013-03-05 11:04:12.478276391 -0600
-+++ qemu/target-xtensa/cpu-qom.h	2013-03-05 11:04:12.474276391 -0600
+--- qemu.orig/target-xtensa/cpu-qom.h	2013-03-05 11:16:37.802263771 -0600
++++ qemu/target-xtensa/cpu-qom.h	2013-03-05 11:16:37.794263771 -0600
 @@ -76,5 +76,6 @@ static inline XtensaCPU *xtensa_env_get_
  
  #define ENV_GET_CPU(e) CPU(xtensa_env_get_cpu(e))

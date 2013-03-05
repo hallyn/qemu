@@ -13,8 +13,8 @@ Date:   Fri Feb 22 18:10:04 2013 +0000
 
 Index: qemu/translate-all.c
 ===================================================================
---- qemu.orig/translate-all.c	2013-03-05 11:09:05.134271436 -0600
-+++ qemu/translate-all.c	2013-03-05 11:09:25.930271084 -0600
+--- qemu.orig/translate-all.c	2013-03-05 11:16:42.110263698 -0600
++++ qemu/translate-all.c	2013-03-05 11:16:42.102263698 -0600
 @@ -1350,55 +1350,6 @@ static TranslationBlock *tb_find_pc(uint
      return &tbs[m_max];
  }

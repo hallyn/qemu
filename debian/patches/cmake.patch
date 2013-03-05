@@ -1,7 +1,7 @@
 Index: qemu/linux-user/syscall.c
 ===================================================================
---- qemu.orig/linux-user/syscall.c	2013-02-26 16:14:47.000000000 -0600
-+++ qemu/linux-user/syscall.c	2013-03-05 11:11:04.134269421 -0600
+--- qemu.orig/linux-user/syscall.c	2013-03-05 11:16:45.590263639 -0600
++++ qemu/linux-user/syscall.c	2013-03-05 11:16:45.586263639 -0600
 @@ -1115,11 +1115,15 @@ static abi_long do_select(int n,
                            abi_ulong rfd_addr, abi_ulong wfd_addr,
                            abi_ulong efd_addr, abi_ulong target_tv_addr)

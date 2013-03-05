@@ -25,8 +25,8 @@ Date:   Fri Feb 22 18:10:03 2013 +0000
 
 Index: qemu/cpu-exec.c
 ===================================================================
---- qemu.orig/cpu-exec.c	2013-03-05 11:06:36.798273947 -0600
-+++ qemu/cpu-exec.c	2013-03-05 11:06:36.786273948 -0600
+--- qemu.orig/cpu-exec.c	2013-03-05 11:16:40.790263721 -0600
++++ qemu/cpu-exec.c	2013-03-05 11:16:40.782263721 -0600
 @@ -64,6 +64,12 @@ static inline tcg_target_ulong cpu_tb_ex
          TranslationBlock *tb = (TranslationBlock *)(next_tb & ~TB_EXIT_MASK);
          cpu_pc_from_tb(env, tb);
@@ -75,8 +75,8 @@ Index: qemu/cpu-exec.c
                  env->current_tb = NULL;
 Index: qemu/exec.c
 ===================================================================
---- qemu.orig/exec.c	2013-03-05 11:06:36.798273947 -0600
-+++ qemu/exec.c	2013-03-05 11:07:06.418273446 -0600
+--- qemu.orig/exec.c	2013-03-05 11:16:40.790263721 -0600
++++ qemu/exec.c	2013-03-05 11:16:40.782263721 -0600
 @@ -492,8 +492,9 @@ void cpu_reset_interrupt(CPUArchState *e
  
  void cpu_exit(CPUArchState *env)
@@ -90,8 +90,8 @@ Index: qemu/exec.c
  void cpu_abort(CPUArchState *env, const char *fmt, ...)
 Index: qemu/include/exec/gen-icount.h
 ===================================================================
---- qemu.orig/include/exec/gen-icount.h	2013-03-05 11:06:36.798273947 -0600
-+++ qemu/include/exec/gen-icount.h	2013-03-05 11:06:36.790273948 -0600
+--- qemu.orig/include/exec/gen-icount.h	2013-03-05 11:16:40.790263721 -0600
++++ qemu/include/exec/gen-icount.h	2013-03-05 11:16:40.782263721 -0600
 @@ -7,10 +7,19 @@
  
  static TCGArg *icount_arg;
@@ -124,8 +124,8 @@ Index: qemu/include/exec/gen-icount.h
          gen_set_label(icount_label);
 Index: qemu/include/qom/cpu.h
 ===================================================================
---- qemu.orig/include/qom/cpu.h	2013-03-05 11:06:36.798273947 -0600
-+++ qemu/include/qom/cpu.h	2013-03-05 11:08:32.558271987 -0600
+--- qemu.orig/include/qom/cpu.h	2013-03-05 11:16:40.790263721 -0600
++++ qemu/include/qom/cpu.h	2013-03-05 11:16:40.782263721 -0600
 @@ -68,6 +68,8 @@ struct kvm_run;
   * @created: Indicates whether the CPU thread has been successfully created.
   * @stop: Indicates a pending stop request.
@@ -145,8 +145,8 @@ Index: qemu/include/qom/cpu.h
      bool kvm_vcpu_dirty;
 Index: qemu/tcg/tcg.h
 ===================================================================
---- qemu.orig/tcg/tcg.h	2013-03-05 11:06:36.798273947 -0600
-+++ qemu/tcg/tcg.h	2013-03-05 11:06:36.790273948 -0600
+--- qemu.orig/tcg/tcg.h	2013-03-05 11:16:40.790263721 -0600
++++ qemu/tcg/tcg.h	2013-03-05 11:16:40.782263721 -0600
 @@ -686,6 +686,10 @@ extern uint8_t *code_gen_prologue;
   *        would hit zero midway through it. In this case the next-TB pointer
   *        returned is the TB we were about to execute, and the caller must
@@ -168,8 +168,8 @@ Index: qemu/tcg/tcg.h
  # define tcg_qemu_tb_exec(env, tb_ptr) \
 Index: qemu/translate-all.c
 ===================================================================
---- qemu.orig/translate-all.c	2013-03-05 11:06:36.798273947 -0600
-+++ qemu/translate-all.c	2013-03-05 11:07:57.858272575 -0600
+--- qemu.orig/translate-all.c	2013-03-05 11:16:40.790263721 -0600
++++ qemu/translate-all.c	2013-03-05 11:16:40.786263721 -0600
 @@ -1476,7 +1476,7 @@ static void tcg_handle_interrupt(CPUArch
              cpu_abort(env, "Raised interrupt while not in I/O function");
          }
