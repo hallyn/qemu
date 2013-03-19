@@ -1,3 +1,10 @@
+qemu (1.4.0+dfsg-1expubuntu5) UNRELEASED; urgency=low
+
+  * add openbios-ppc to qemu-system-ppc Suggests (now that it's in the
+    archive)
+
+ -- Serge Hallyn <serge.hallyn@ubuntu.com>  Tue, 19 Mar 2013 15:41:20 -0500
+
 qemu (1.4.0+dfsg-1expubuntu4) raring; urgency=low
 
   * re-add qemu-system-x86.modprobe to set nesting=1 (LP: #1155177)

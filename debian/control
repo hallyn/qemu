@@ -261,7 +261,7 @@ Provides: ${sysprovides:ppc}, qemu-kvm
 Breaks: qemu-system (<< 1.3.0+dfsg-5), qemu-kvm (<< 1.2.0.dfsg-1), qemu-common (<< 1.2.0.dfsg-1), kvm (<< 1.3.0+dfsg-5)
 Replaces: qemu-system (<< 1.3.0+dfsg-5), qemu-kvm (<< 1.2.0.dfsg-1), qemu-common (<< 1.2.0.dfsg-1), kvm (<< 1.3.0+dfsg-5)
 Recommends: qemu-utils
-Suggests: samba, vde2
+Suggests: samba, vde2, openbios-ppc
 Description: QEMU full system emulation binaries (ppc)
  QEMU is a fast processor emulator: currently the package supports
  PowerPC emulation. By using dynamic translation it achieves
