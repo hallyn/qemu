@@ -35,11 +35,11 @@ qemu (1.5.0+dfsg-1ubuntu1) saucy; urgency=low
     - Dropped patches:
       * 0001-fix-wrong-output-with-info-chardev-for-tcp-socket.patch
     - Kept patches:
-      * expose_vms_qemu64cpu.patch
-      * gridcentric patches
+      * expose_vms_qemu64cpu.patch - updated
+      * gridcentric patches (not yet)
       * linaro arm patches  (not yet)
 
- -- Serge Hallyn <serge.hallyn@ubuntu.com>  Wed, 22 May 2013 06:51:27 +0200
+ -- Serge Hallyn <serge.hallyn@ubuntu.com>  Wed, 22 May 2013 21:15:10 +0200
 
 qemu (1.5.0+dfsg-1) unstable; urgency=low
 

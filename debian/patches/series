@@ -3,5 +3,5 @@ retry-pxe-after-efi.patch
 use-fixed-data-path.patch
 sparc-linux-user-fix-missing-symbols-in-.rel-.rela.plt-sections.patch
 expose-vmx_qemu64cpu.patch
-#gridcentric/ramblock-filename
-gridcentric/silent_stop.patch
+#gridcentric/ramblock-filename - applied upstream
+#gridcentric/silent_stop.patch - causes FTBFS
