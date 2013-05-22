@@ -2,3 +2,4 @@
 02_kfreebsd.patch
 retry-pxe-after-efi.patch
 use-fixed-data-path.patch
+expose-vmx_qemu64cpu.patch
