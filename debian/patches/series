@@ -2,3 +2,8 @@
 retry-pxe-after-efi.patch
 use-fixed-data-path.patch
 configure-explicitly-disable-virtfs-if-softmmu=no.patch
+sparc-linux-user-fix-missing-symbols-in-.rel-.rela.plt-sections.patch
+expose-vmx_qemu64cpu.patch
+xen-simplify-xen_enabled.patch
+main_loop-do-not-set-nonblocking-if-xen_enabled.patch
+xen_machine_pv-do-not-create-a-dummy-CPU-in-machine-.patch
