@@ -3,7 +3,8 @@ qemu (1.5.0+dfsg-1ubuntu1) saucy; urgency=low
   * Merge 1.5.0+dfs-1 from debian unstable.  Remaining changes:
     - debian/control
       * update maintainer
-      * remove libiscsi, usb-redir, vde, and vnc-jpeg from build-deps
+      * remove libiscsi, usb-redir, vde, vnc-jpeg, and libssh2-1-dev
+        from build-deps
       * enable rbd
       * add qemu-system and qemu-common B/R to qemu-keymaps
       * add D:udev, R:qemu, R:qemu-common and B:qemu-common to
