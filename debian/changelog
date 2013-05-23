@@ -17,8 +17,11 @@ qemu (1.5.0+dfsg-1ubuntu1) saucy; urgency=low
         - add qemu-common to Breaks/Replaces.
         - add cpu-checker to Recommends.
       * qemu-user: add B/R:qemu-kvm
-      * qemu-kvm: add armhf armel powerpc sparc to Architecture
+      * qemu-kvm:
+        - add armhf armel powerpc sparc to Architecture
+        - C/R/P: qemu-kvm-spice
       * add qemu-common package
+      * drop qemu-slof which is not packaged in ubuntu
     - add qemu-system-common.links for tap ifup/down scripts and OVMF link.
     - qemu-system-x86.links:
       * remove pxe rom links which are in kvm-ipxe
