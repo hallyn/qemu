@@ -30,6 +30,7 @@ qemu (1.5.0+dfsg-1ubuntu1) saucy; urgency=low
       * add kvm-spice symlink to qemu-kvm
       * call dh_installmodules for qemu-system-x86
       * update dh_installinit to install upstart script
+      * run dh_installman (Closes: #709241) (cherrypicked from 1.5.0+dfsg-2)
     - Add qemu-utils.links for kvm-* symlinks.
     - Add qemu-system-x86.qemu-kvm.upstart and .default
     - Add qemu-system-x86.modprobe to set nesting=1
@@ -43,7 +44,7 @@ qemu (1.5.0+dfsg-1ubuntu1) saucy; urgency=low
       * gridcentric patches (not yet)
       * linaro arm patches  (not yet)
 
- -- Serge Hallyn <serge.hallyn@ubuntu.com>  Wed, 22 May 2013 21:15:10 +0200
+ -- Serge Hallyn <serge.hallyn@ubuntu.com>  Thu, 23 May 2013 18:33:18 +0200
 
 qemu (1.5.0+dfsg-1) unstable; urgency=low
 
