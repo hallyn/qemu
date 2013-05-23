@@ -26,6 +26,7 @@ qemu (1.5.0+dfsg-1ubuntu1) saucy; urgency=low
     - debian/rules
       * add kvm-spice symlink to qemu-kvm
       * call dh_installmodules for qemu-system-x86
+      * update dh_installinit to install upstart script
     - Add qemu-utils.links for kvm-* symlinks.
     - Add qemu-system-x86.qemu-kvm.upstart and .default
     - Add qemu-system-x86.modprobe to set nesting=1
