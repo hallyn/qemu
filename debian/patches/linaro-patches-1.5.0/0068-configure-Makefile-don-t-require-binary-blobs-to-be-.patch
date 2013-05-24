@@ -1,0 +1,44 @@
+From bbcc90cc7e6a3464726a00b5b655f226113f474a Mon Sep 17 00:00:00 2001
+From: Peter Maydell <peter.maydell@linaro.org>
+Date: Mon, 18 Feb 2013 16:58:35 +0000
+Subject: [PATCH 68/69] configure, Makefile: don't require binary blobs to be
+ present
+
+In configure and Makefile, don't insist on the presence of the
+binary blobs in pc-bios, but silently skip any which aren't
+present. This allows us to delete them from the repository
+without causing build failures.
+
+Signed-off-by: Peter Maydell <peter.maydell@linaro.org>
+---
+ Makefile  | 1 +
+ configure | 1 +
+ 2 files changed, 2 insertions(+)
+
+diff --git a/Makefile b/Makefile
+index 7dc0204..8482485 100644
+--- a/Makefile
++++ b/Makefile
+@@ -335,6 +335,7 @@ ifneq ($(HELPERS-y),)
+ endif
+ ifneq ($(BLOBS),)
+ 	set -e; for x in $(BLOBS); do \
++		[ -e "$(SRC_PATH)/pc-bios/$$x" ] || continue; \
+ 		$(INSTALL_DATA) $(SRC_PATH)/pc-bios/$$x "$(DESTDIR)$(qemu_datadir)"; \
+ 	done
+ endif
+diff --git a/configure b/configure
+index 1ca1dc5..6093fb9 100755
+--- a/configure
++++ b/configure
+@@ -4543,6 +4543,7 @@ for bios_file in \
+     $source_path/pc-bios/openbios-* \
+     $source_path/pc-bios/palcode-*
+ do
++    [ -e "$bios_file" ] || continue
+     FILES="$FILES pc-bios/`basename $bios_file`"
+ done
+ mkdir -p $DIRS
+-- 
+1.8.1.2
+
