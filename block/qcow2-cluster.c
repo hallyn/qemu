@@ -748,7 +748,7 @@ again:
         nb_clusters = 1;
 
     /* how many available clusters ? */
-
+    i = 0;
     while (i < nb_clusters) {
         i += count_contiguous_clusters(nb_clusters - i, s->cluster_size,
                 &l2_table[l2_index], i, 0);
