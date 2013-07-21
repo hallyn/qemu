@@ -589,12 +589,17 @@ void qemu_system_cpu_hot_add(int cpu, int state)
     PIIX4PMState *s = global_piix4_pm_state;
 
     if (state && !qemu_get_cpu(cpu)) {
+#if 1
+        fprintf(stderr, "cpu hotplug not supported\n", cpu);
+        return;
+#else
         env = pc_new_cpu(global_cpu_model);
         if (!env) {
             fprintf(stderr, "cpu %d creation failed\n", cpu);
             return;
         }
         env->cpuid_apic_id = cpu;
+#endif
     }
 
     if (state)
