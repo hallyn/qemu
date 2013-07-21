@@ -298,6 +298,24 @@ static inline void vmsvga_update_rect(struct vmsvga_state_s *s,
     uint8_t *src;
     uint8_t *dst;
 
+    if (x < 0) {
+        fprintf(stderr, "%s: update x was < 0 (%d, w %d)\n",
+                        __FUNCTION__, x, w);
+        w += x;
+        if (w < 0) {
+            return;
+        }
+        x = 0;
+    }
+    if (y < 0) {
+        fprintf(stderr, "%s: update y was < 0 (%d, h %d)\n",
+                        __FUNCTION__, y, h);
+        h += y;
+        if (h < 0) {
+            return;
+        }
+        y = 0;
+    }
     if (x + w > s->width) {
         fprintf(stderr, "%s: update width too large x: %d, w: %d\n",
                         __FUNCTION__, x, w);
