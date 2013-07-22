@@ -2063,6 +2063,10 @@ static int configure_accelerator(void)
         exit(1);
     }
 
+    /* for non-accelerated qemu, don't enable hpet */
+    if (!strcmp(accel_list[i].opt_name, "tcg"))
+        no_hpet = 1;
+
     if (init_failed) {
         fprintf(stderr, "Back to %s accelerator.\n", accel_list[i].name);
     }
