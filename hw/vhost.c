@@ -26,11 +26,11 @@ static void vhost_dev_sync_region(struct vhost_dev *dev,
     vhost_log_chunk_t *to = dev->log + end / VHOST_LOG_CHUNK + 1;
     uint64_t addr = (start / VHOST_LOG_CHUNK) * VHOST_LOG_CHUNK;
 
-    assert(end / VHOST_LOG_CHUNK < dev->log_size);
-    assert(start / VHOST_LOG_CHUNK < dev->log_size);
     if (end < start) {
         return;
     }
+    assert(end / VHOST_LOG_CHUNK < dev->log_size);
+    assert(start / VHOST_LOG_CHUNK < dev->log_size);
     for (;from < to; ++from) {
         vhost_log_chunk_t log;
         int bit;
