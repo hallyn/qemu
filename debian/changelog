@@ -39,12 +39,14 @@ qemu (1.6.0~rc0+dfsg-1expubuntu1~ppa1) UNRELEASED; urgency=low
     - qemu-system-common.postinst: remove bad group acl if there, then have
       udev relabel /dev/kvm.
     - Dropped linaro patches (awaiting rebase)
+    - Dropped patches:
+      * xen-simplify-xen_enabled.patch
+      * sparc-linux-user-fix-missing-symbols-in-.rel-.rela.plt-sections.patch
+      * main_loop-do-not-set-nonblocking-if-xen_enabled.patch
+      * xen_machine_pv-do-not-create-a-dummy-CPU-in-machine-.patch
     - Kept patches:
       * expose_vms_qemu64cpu.patch - updated
       * linaro arm patches from qemu-linaro rebasing branch
-      * xen-simplify-xen_enabled.patch
-      * main_loop-do-not-set-nonblocking-if-xen_enabled.patch
-      * xen_machine_pv-do-not-create-a-dummy-CPU-in-machine-.patch
 
  -- Serge Hallyn <serge.hallyn@ubuntu.com>  Wed, 02 Oct 2013 14:45:45 -0500
 
