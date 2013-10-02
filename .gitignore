@@ -82,10 +82,8 @@ fsdev/virtfs-proxy-helper.pod
 *.swp
 *.orig
 .pc
-*.patch
 *.gcda
 *.gcno
-patches
 pc-bios/bios-pq/status
 pc-bios/vgabios-pq/status
 pc-bios/optionrom/linuxboot.asm
