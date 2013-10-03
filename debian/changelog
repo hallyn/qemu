@@ -38,7 +38,7 @@ qemu (1.6.0+dfsg-2ubuntu1) UNRELEASED; urgency=low
     - Add qemu-system-common.preinst to add kvm group
     - qemu-system-common.postinst: remove bad group acl if there, then have
       udev relabel /dev/kvm.
-    - Dropped linaro patches (awaiting rebase)
+    - New linaro patches from qemu-lianro rebasing branch
     - Dropped patches:
       * xen-simplify-xen_enabled.patch
       * sparc-linux-user-fix-missing-symbols-in-.rel-.rela.plt-sections.patch
@@ -50,9 +50,6 @@ qemu (1.6.0+dfsg-2ubuntu1) UNRELEASED; urgency=low
 
  -- Serge Hallyn <serge.hallyn@ubuntu.com>  Tue, 22 Oct 2013 22:47:07 -0500
 
- qemu (1.6.0+dfsg-1) unstable; urgency=low
- 
-   [ Michael Tokarev ]
 qemu (1.6.0+dfsg-2) unstable; urgency=low
 
   * Build-depend in seccomp again once it is in -testing
