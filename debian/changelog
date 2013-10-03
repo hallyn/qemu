@@ -1,4 +1,4 @@
-qemu (1.6.0+dfsg-1ubuntu1) UNRELEASED; urgency=low
+qemu (1.6.0+dfsg-1ubuntu2) UNRELEASED; urgency=low
 
   * Merge 1.6.0~rc0+dfsg-1exp from debian experimental.  Remaining changes:
     - debian/control
@@ -38,7 +38,7 @@ qemu (1.6.0+dfsg-1ubuntu1) UNRELEASED; urgency=low
     - Add qemu-system-common.preinst to add kvm group
     - qemu-system-common.postinst: remove bad group acl if there, then have
       udev relabel /dev/kvm.
-    - Dropped linaro patches (awaiting rebase)
+    - New linaro patches from qemu-lianro rebasing branch
     - Dropped patches:
       * xen-simplify-xen_enabled.patch
       * sparc-linux-user-fix-missing-symbols-in-.rel-.rela.plt-sections.patch
@@ -48,7 +48,7 @@ qemu (1.6.0+dfsg-1ubuntu1) UNRELEASED; urgency=low
       * expose_vms_qemu64cpu.patch - updated
       * linaro arm patches from qemu-linaro rebasing branch
 
- -- Serge Hallyn <serge.hallyn@ubuntu.com>  Wed, 02 Oct 2013 17:21:27 -0500
+ -- Serge Hallyn <serge.hallyn@ubuntu.com>  Thu, 03 Oct 2013 13:42:34 -0500
 
 qemu (1.6.0+dfsg-1) unstable; urgency=low
 
