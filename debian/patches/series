@@ -68,3 +68,4 @@ linaro-patches/0063-hw-omap_intc.c-Don-t-complain-about-nonexistent-regi.patch
 linaro-patches/0064-hw-omap_gpio.c-Don-t-complain-about-some-writes-to-r.patch
 linaro-patches/0065-onenand-Ignore-zero-writes-to-boot-command-space.patch
 linaro-patches/0066-musb-add-dummy-support-for-ulpi-pass-through-registe.patch
+fix-pci-add

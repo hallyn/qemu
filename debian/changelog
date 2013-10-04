@@ -47,8 +47,11 @@ qemu (1.6.0+dfsg-1ubuntu1) UNRELEASED; urgency=low
     - Kept patches:
       * expose_vms_qemu64cpu.patch - updated
       * linaro arm patches from qemu-linaro rebasing branch
+    - New patches:
+      * fix-pci-add: change CONFIG variable in ifdef to make sure that
+        pci_add is defined.
 
- -- Serge Hallyn <serge.hallyn@ubuntu.com>  Thu, 03 Oct 2013 13:42:34 -0500
+ -- Serge Hallyn <serge.hallyn@ubuntu.com>  Fri, 04 Oct 2013 10:17:56 -0500
 
 qemu (1.6.0+dfsg-1) unstable; urgency=low
 
