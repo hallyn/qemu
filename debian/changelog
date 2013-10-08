@@ -50,6 +50,7 @@ qemu (1.6.0+dfsg-2ubuntu1) UNRELEASED; urgency=low
     - New patches:
       * fix-pci-add: change CONFIG variable in ifdef to make sure that
         pci_add is defined.
+  * Add linaro patches
 
  -- Serge Hallyn <serge.hallyn@ubuntu.com>  Tue, 22 Oct 2013 22:47:07 -0500
 
