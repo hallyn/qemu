@@ -1,4 +1,4 @@
-qemu (1.6.0+dfsg-1ubuntu1~ppa4) saucy; urgency=low
+qemu (1.6.0+dfsg-1ubuntu1) UNRELEASED; urgency=low
 
   * Merge 1.6.0~rc0+dfsg-1exp from debian experimental.  Remaining changes:
     - debian/control
