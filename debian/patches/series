@@ -71,3 +71,7 @@ linaro-patches/0066-musb-add-dummy-support-for-ulpi-pass-through-registe.patch
 fix-pci-add
 arm-virt/0001-hw-arm-boot-allow-boards-to-provide-an-fdt-blob
 arm-virt/0002-hw-arm-add-virt-platform
+arm-virt/0003-hw-cpu-a15mpcore-wire-generic-timer-outputs-to-gic-inputs
+arm-virt/0004-target-arm-implement-the-generic-timer
+arm-virt/0005-target-arm-support-coprocessor-registers-which-do-io
+arm-virt/0006-target-arm-allow-raw-read-write-64bit

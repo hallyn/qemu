@@ -1,4 +1,4 @@
-qemu (1.6.0+dfsg-1ubuntu1) UNRELEASED; urgency=low
+qemu (1.6.0+dfsg-1ubuntu1~ppa4) saucy; urgency=low
 
   * Merge 1.6.0~rc0+dfsg-1exp from debian experimental.  Remaining changes:
     - debian/control
@@ -51,6 +51,7 @@ qemu (1.6.0+dfsg-1ubuntu1) UNRELEASED; urgency=low
       * fix-pci-add: change CONFIG variable in ifdef to make sure that
         pci_add is defined.
   * Add linaro patches
+  * Add experimental mach-virt patches for arm virtualization.
 
  -- Serge Hallyn <serge.hallyn@ubuntu.com>  Tue, 08 Oct 2013 12:51:19 -0500
 
