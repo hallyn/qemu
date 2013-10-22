@@ -44,6 +44,7 @@ qemu (1.6.0+dfsg-2ubuntu1) trusty; urgency=low
       * sparc-linux-user-fix-missing-symbols-in-.rel-.rela.plt-sections.patch
       * main_loop-do-not-set-nonblocking-if-xen_enabled.patch
       * xen_machine_pv-do-not-create-a-dummy-CPU-in-machine-.patch
+      * virtio-rng-fix-crash
     - Kept patches:
       * expose_vms_qemu64cpu.patch - updated
       * linaro arm patches from qemu-linaro rebasing branch
@@ -127,6 +128,19 @@ qemu (1.5.0+dfsg-4) unstable; urgency=medium
     with <linux/termio.h>.
 
  -- Michael Tokarev <mjt@tls.msk.ru>  Thu, 06 Jun 2013 01:50:32 +0400
+
+qemu (1.5.0+dfsg-3ubuntu6) trusty; urgency=low
+
+  * No change rebuild for new seccomp.
+
+ -- Stéphane Graber <stgraber@ubuntu.com>  Mon, 21 Oct 2013 18:34:50 -0400
+
+qemu (1.5.0+dfsg-3ubuntu5) saucy; urgency=low
+
+  * Cherrypick upstream patch to fix crash with rng device (LP: #1235017)
+    - virtio-rng-fix-crash
+
+ -- Serge Hallyn <serge.hallyn@ubuntu.com>  Wed, 09 Oct 2013 17:46:49 -0500
 
 qemu (1.5.0+dfsg-3ubuntu4) saucy; urgency=low
 
