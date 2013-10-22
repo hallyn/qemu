@@ -52,6 +52,8 @@ qemu (1.6.0+dfsg-1ubuntu1) UNRELEASED; urgency=low
         pci_add is defined.
   * Add linaro patches
   * Add experimental mach-virt patches for arm virtualization.
+  * qemu-system-common.install: add debian/tmp/usr/lib to install the
+    qemu-bridge-helper
 
  -- Serge Hallyn <serge.hallyn@ubuntu.com>  Tue, 08 Oct 2013 12:51:19 -0500
 
