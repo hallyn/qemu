@@ -1,4 +1,4 @@
-qemu (1.6.0+dfsg-2ubuntu1) UNRELEASED; urgency=low
+qemu (1.6.0+dfsg-2ubuntu1) trusty; urgency=low
 
   * Merge 1.6.0~rc0+dfsg-2exp from debian experimental.  Remaining changes:
     - debian/control
