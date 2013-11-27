@@ -1,4 +1,4 @@
-qemu (1.6.0+dfsg-2ubuntu2aarch64.1) UNRELEASED; urgency=low
+qemu (1.6.0+dfsg-2ubuntu3) trusty; urgency=low
 
   * add aarch64 patches from https://github.com/susematz/qemu.git
   * add aarch64/force-aarch64-uname-to-3.7.0-to-appease-glibc patch
