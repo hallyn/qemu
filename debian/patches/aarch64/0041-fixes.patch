@@ -1,0 +1,104 @@
+From 2995fbf23caf1b244b2ab3c1b7c437b4dd46049c Mon Sep 17 00:00:00 2001
+From: Alexander Graf <agraf@suse.de>
+Date: Tue, 5 Feb 2013 20:06:17 +0100
+Subject: [PATCH 041/169] fixes
+
+---
+ target-arm/helper.c        | 26 +++++++++++++++++---------
+ target-arm/translate-a64.c | 20 +++++++++++++-------
+ 2 files changed, 30 insertions(+), 16 deletions(-)
+
+Index: qemu-1.6.0+dfsg/target-arm/helper.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/helper.c	2013-11-05 22:23:24.367412875 +0000
++++ qemu-1.6.0+dfsg/target-arm/helper.c	2013-11-05 22:23:24.363412886 +0000
+@@ -4113,25 +4113,33 @@
+ 
+ uint32_t HELPER(cond)(uint32_t pstate, uint32_t cond)
+ {
+-    switch (cond) {
++    uint32_t r;
++
++    switch (cond >> 1) {
+     case 0:
+-        return pstate & PSTATE_Z;
++        r = pstate & PSTATE_Z;
+     case 1:
+-        return pstate & PSTATE_C;
++        r = pstate & PSTATE_C;
+     case 2:
+-        return pstate & PSTATE_N;
++        r = pstate & PSTATE_N;
+     case 3:
+-        return pstate & PSTATE_V;
++        r = pstate & PSTATE_V;
+     case 4:
+-        return (pstate & PSTATE_C) && !(pstate & PSTATE_V);
++        r = (pstate & PSTATE_C) && !(pstate & PSTATE_V);
+     case 5:
+-        return (((pstate & PSTATE_N) ? 1 : 0) == ((pstate & PSTATE_V) ? 1 : 0));
++        r = (((pstate & PSTATE_N) ? 1 : 0) == ((pstate & PSTATE_V) ? 1 : 0));
+     case 6:
+-        return (((pstate & PSTATE_N) ? 1 : 0) == ((pstate & PSTATE_V) ? 1 : 0))
++        r = (((pstate & PSTATE_N) ? 1 : 0) == ((pstate & PSTATE_V) ? 1 : 0))
+                && !(pstate & PSTATE_Z);
+     case 7:
+     default:
+         /* ALWAYS */
+-        return 1;
++        r = 1;
++    }
++
++    if ((cond & 0x8) && (cond != 0xf)) {
++        r = !r;
+     }
++
++    return r;
+ }
+Index: qemu-1.6.0+dfsg/target-arm/translate-a64.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/translate-a64.c	2013-11-05 22:23:24.367412875 +0000
++++ qemu-1.6.0+dfsg/target-arm/translate-a64.c	2013-11-05 22:23:24.363412886 +0000
+@@ -230,7 +230,7 @@
+ 
+ static void handle_condb(DisasContext *s, uint32_t insn)
+ {
+-    uint64_t addr = s->pc - 4 + (get_sbits(insn, 0, 19) << 2);
++    uint64_t addr = s->pc - 4 + (get_sbits(insn, 5, 19) << 2);
+     int cond = get_bits(insn, 0, 4);
+     int no_match;
+     TCGv_i32 tcg_zero = tcg_const_i32(0);
+@@ -257,7 +257,7 @@
+ 
+ static void handle_cb(DisasContext *s, uint32_t insn)
+ {
+-    uint64_t addr = s->pc - 4 + (get_sbits(insn, 5, 19) << 2);
++    uint64_t addr = s->pc - 4 + (get_sbits(insn, 0, 19) << 2);
+     bool is_zero = get_bits(insn, 24, 1);
+     int dest = get_reg(insn);
+     int no_match;
+@@ -799,13 +799,19 @@
+                                       tcg_imm, tcg_result);
+             }
+         }
+-    }
+-
+-    if (is_32bit) {
+-        tcg_gen_ext32u_i64(cpu_reg_sp(dest), tcg_result);
++        if (is_32bit) {
++            tcg_gen_ext32u_i64(cpu_reg(dest), tcg_result);
++        } else {
++            tcg_gen_mov_i64(cpu_reg(dest), tcg_result);
++        }
+     } else {
+-        tcg_gen_mov_i64(cpu_reg_sp(dest), tcg_result);
++        if (is_32bit) {
++            tcg_gen_ext32u_i64(cpu_reg_sp(dest), tcg_result);
++        } else {
++            tcg_gen_mov_i64(cpu_reg_sp(dest), tcg_result);
++        }
+     }
++
+ }
+ 
+ static void handle_svc(DisasContext *s, uint32_t insn)

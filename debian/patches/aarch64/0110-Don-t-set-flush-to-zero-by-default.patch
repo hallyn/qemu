@@ -1,0 +1,26 @@
+From 75cb838787cc0bcf611bacbab0962285a850b537 Mon Sep 17 00:00:00 2001
+From: Michael Matz <matz@suse.de>
+Date: Fri, 22 Mar 2013 19:16:47 +0100
+Subject: [PATCH 110/169] Don't set flush to zero by default
+
+The Foundation model doesn't do so, and at least java relies
+on correct behaviour with denormals.
+---
+ target-arm/cpu.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+Index: qemu-1.6.0+dfsg/target-arm/cpu.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/cpu.c	2013-11-05 22:23:38.579376084 +0000
++++ qemu-1.6.0+dfsg/target-arm/cpu.c	2013-11-05 22:23:38.575376095 +0000
+@@ -117,8 +117,8 @@
+     }
+     env->vfp.xregs[ARM_VFP_FPEXC] = 0;
+ #endif
+-    set_flush_to_zero(1, &env->vfp.standard_fp_status);
+-    set_flush_inputs_to_zero(1, &env->vfp.standard_fp_status);
++    set_flush_to_zero(0, &env->vfp.standard_fp_status);
++    set_flush_inputs_to_zero(0, &env->vfp.standard_fp_status);
+     set_default_nan_mode(1, &env->vfp.standard_fp_status);
+     set_float_detect_tininess(float_tininess_before_rounding,
+                               &env->vfp.fp_status);

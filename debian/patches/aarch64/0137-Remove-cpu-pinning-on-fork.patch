@@ -1,0 +1,31 @@
+From 828f2d3fdcc63dff02e5335079c3632ba2169538 Mon Sep 17 00:00:00 2001
+From: Michael Matz <matz@suse.de>
+Date: Tue, 2 Apr 2013 00:41:13 +0200
+Subject: [PATCH 137/169] Remove cpu-pinning on fork
+
+Childs have just one thread, so no need to pin them.  Normally
+the affinity is inherited by childs, even over execve.
+---
+ linux-user/syscall.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+Index: qemu-1.6.0+dfsg/linux-user/syscall.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/linux-user/syscall.c	2013-11-05 22:23:43.987362086 +0000
++++ qemu-1.6.0+dfsg/linux-user/syscall.c	2013-11-05 22:23:43.983362096 +0000
+@@ -4433,6 +4433,15 @@
+                 cpu_set_tls (env, newtls);
+             if (flags & CLONE_CHILD_CLEARTID)
+                 ts->child_tidptr = child_tidptr;
++	    {
++	        /* Activate all CPUs again when forking.  */
++	        int i;
++		cpu_set_t mask;
++		CPU_ZERO(&mask);
++		for (i = 0; i < CPU_SETSIZE; i++)
++		  CPU_SET(i, &mask);
++		sched_setaffinity(0, sizeof(mask), &mask);
++	    }
+         } else {
+             fork_end(0);
+         }

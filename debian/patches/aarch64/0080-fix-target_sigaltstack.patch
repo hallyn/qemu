@@ -1,0 +1,22 @@
+From 91600873d19239ea4a58c51f01637ec6cd3265fb Mon Sep 17 00:00:00 2001
+From: Alexander Graf <agraf@suse.de>
+Date: Wed, 27 Feb 2013 19:57:52 +0100
+Subject: [PATCH 080/169] fix target_sigaltstack
+
+---
+ linux-user/arm/target_signal.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+Index: qemu-1.6.0+dfsg/linux-user/arm/target_signal.h
+===================================================================
+--- qemu-1.6.0+dfsg.orig/linux-user/arm/target_signal.h	2013-11-05 22:23:32.571391637 +0000
++++ qemu-1.6.0+dfsg/linux-user/arm/target_signal.h	2013-11-05 22:23:32.571391637 +0000
+@@ -7,7 +7,7 @@
+ 
+ typedef struct target_sigaltstack {
+ 	abi_ulong ss_sp;
+-	int ss_flags;
++	abi_long ss_flags;
+ 	abi_ulong ss_size;
+ } target_stack_t;
+ 

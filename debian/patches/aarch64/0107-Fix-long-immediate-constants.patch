@@ -1,0 +1,23 @@
+From 0ff91a01b10155ff2bcd5504a6a6dc1212d9c659 Mon Sep 17 00:00:00 2001
+From: Michael Matz <matz@suse.de>
+Date: Tue, 19 Mar 2013 18:19:02 +0100
+Subject: [PATCH 107/169] Fix long immediate constants
+
+movi with code 111x doesn't map to mvni.
+---
+ target-arm/translate-a64.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+Index: qemu-1.6.0+dfsg/target-arm/translate-a64.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/translate-a64.c	2013-11-05 22:23:37.975377647 +0000
++++ qemu-1.6.0+dfsg/target-arm/translate-a64.c	2013-11-05 22:23:37.967377669 +0000
+@@ -2767,7 +2767,7 @@
+         break;
+     }
+ 
+-    if (is_neg) {
++    if (((cmode >> 1) & 7) != 7 && is_neg) {
+         imm = ~imm;
+     }
+     tcg_imm = tcg_const_i64(imm);

@@ -1,0 +1,94 @@
+From ec2b8f3330f1c4e702826b1059586d70f17c839d Mon Sep 17 00:00:00 2001
+From: Michael Matz <matz@suse.de>
+Date: Wed, 27 Mar 2013 19:34:34 +0100
+Subject: [PATCH 125/169] softfloat: Fix float64_to_uint64
+
+Values larger than MAX_INT, but below MAX_UINT need to be handled
+different.
+---
+ fpu/softfloat.c | 59 ++++++++++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 39 insertions(+), 20 deletions(-)
+
+Index: qemu-1.6.0+dfsg/fpu/softfloat.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/fpu/softfloat.c	2013-11-05 22:23:41.567368350 +0000
++++ qemu-1.6.0+dfsg/fpu/softfloat.c	2013-11-05 22:23:41.567368350 +0000
+@@ -6585,37 +6585,56 @@
+     return res;
+ }
+ 
+-/* FIXME: This looks broken.  */
+ uint64_t float64_to_uint64 (float64 a STATUS_PARAM)
+ {
+-    int64_t v;
+-
+-    v = float64_val(int64_to_float64(INT64_MIN STATUS_VAR));
+-    v += float64_val(a);
+-    v = float64_to_int64(make_float64(v) STATUS_VAR);
++    flag aSign;
++    int_fast16_t aExp;
++    uint64_t res;
++
++    aExp = extractFloat64Exp( a );
++    aSign = extractFloat64Sign( a );
++
++    if (aSign) {
++	res = 0;
++	float_raise( float_flag_invalid STATUS_VAR);
++    } else {
++	/* If a > 2^63 (but < 2^64) it won't fit into a signed int,
++	   so half the value, convert to int, and double it again.  */
++	if (aExp == 0x43e)
++	  a = packFloat64( 0, aExp - 1, extractFloat64Frac( a ) );
++
++	res = float64_to_int64(a STATUS_VAR);
++	if (aExp == 0x43e)
++	  res <<= 1;
++    }
+ 
+-    return v - INT64_MIN;
++    return res;
+ }
+ 
+ uint64_t float64_to_uint64_round_to_zero (float64 a STATUS_PARAM)
+ {
+-    int64_t v;
+-
+-    v = float64_val(a);
+-    if (v > int64_to_float64(INT64_MIN STATUS_VAR)) {
+-        /* XXX */
+-        assert(0);
++    flag aSign;
++    int_fast16_t aExp;
++    uint64_t res;
++
++    aExp = extractFloat64Exp( a );
++    aSign = extractFloat64Sign( a );
++
++    if (aSign) {
++	res = 0;
++	float_raise( float_flag_invalid STATUS_VAR);
++    } else {
++	/* If a > 2^63 (but < 2^64) it won't fit into a signed int,
++	   so half the value, convert to int, and double it again.  */
++	if (aExp == 0x43e)
++	  a = packFloat64( 0, aExp - 1, extractFloat64Frac( a ) );
++
++	res = float64_to_int64_round_to_zero(a STATUS_VAR);
++	if (aExp == 0x43e)
++	  res <<= 1;
+     }
+-    return float64_to_int64_round_to_zero(a STATUS_VAR);
+-#if 0
+-    int64_t v;
+-
+-    v = float64_val(int64_to_float64(INT64_MIN STATUS_VAR));
+-    v += float64_val(a);
+-    v = float64_to_int64_round_to_zero(make_float64(v) STATUS_VAR);
+ 
+-    return v - INT64_MIN;
+-#endif
++    return res;
+ }
+ 
+ #define COMPARE(s, nan_exp)                                                  \

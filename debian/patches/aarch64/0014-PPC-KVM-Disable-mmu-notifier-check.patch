@@ -1,0 +1,31 @@
+From ba9c82745f1e114dbde98c2914044e22ef356dac Mon Sep 17 00:00:00 2001
+From: Alexander Graf <agraf@suse.de>
+Date: Fri, 6 Jan 2012 01:05:55 +0100
+Subject: [PATCH 014/169] PPC: KVM: Disable mmu notifier check
+
+When using hugetlbfs (which is required for HV mode KVM on 970), we
+check for MMU notifiers that on 970 can not be implemented properly.
+
+So disable the check for mmu notifiers on PowerPC guests, making
+KVM guests work there, even if possibly racy in some odd circumstances.
+---
+ exec.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+Index: qemu-1.6.0+dfsg/exec.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/exec.c	2013-11-05 22:23:18.499428067 +0000
++++ qemu-1.6.0+dfsg/exec.c	2013-11-05 22:23:18.491428089 +0000
+@@ -944,10 +944,12 @@
+         return NULL;
+     }
+ 
++#ifndef TARGET_PPC
+     if (kvm_enabled() && !kvm_has_sync_mmu()) {
+         fprintf(stderr, "host lacks kvm mmu notifiers, -mem-path unsupported\n");
+         return NULL;
+     }
++#endif
+ 
+     /* Make name safe to use with mkstemp by replacing '/' with '_'. */
+     sanitized_name = g_strdup(block->mr->name);

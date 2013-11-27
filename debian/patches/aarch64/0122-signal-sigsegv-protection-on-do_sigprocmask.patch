@@ -1,0 +1,55 @@
+From 63eb8d3ea58f58d5857153b0c632def1bbd05781 Mon Sep 17 00:00:00 2001
+From: Alex Barcelo <abarcelo@ac.upc.edu>
+Date: Sat, 20 Oct 2012 16:15:57 +0200
+Subject: [PATCH 122/169] signal: sigsegv protection on do_sigprocmask
+
+Create a safe wrapper by protecting the signal mask.
+
+Instead of doing a simple passthrough of the sigprocmask, the wrapper
+manipulates the signal mask in a safe way for the qemu internal. This
+is done by avoiding SIGSEGV bit mask manipulation from the guest.
+
+We also return the same bit on the SIGSEGV. This is not required for
+most applications, but if the application checks it, then it will see
+that somethings fishy about it (and, in fact, maybe it should). If we
+do not want the guest to be aware of those manipulations, then it should
+be implemented in another way, but this seems quite clean and consistent.
+
+The wrapper can be improved to add more features for better signal
+managing, but this seems enough for "simple" self-modifying code.
+
+Signed-off-by: Alex Barcelo <abarcelo@ac.upc.edu>
+---
+ linux-user/signal.c | 19 ++++++++++++++++++-
+ 1 file changed, 18 insertions(+), 1 deletion(-)
+
+Index: qemu-1.6.0+dfsg/linux-user/signal.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/linux-user/signal.c	2013-11-05 22:23:40.983369862 +0000
++++ qemu-1.6.0+dfsg/linux-user/signal.c	2013-11-05 22:23:40.979369873 +0000
+@@ -5710,7 +5710,24 @@
+  */
+ int do_sigprocmask(int how, const sigset_t *set, sigset_t *oldset)
+ {
+-    return sigprocmask(how, set, oldset);
++    int ret;
++    sigset_t val;
++    sigset_t *temp;
++    if (set) {
++        val = *set;
++        temp = &val;
++        sigdelset(temp, SIGSEGV);
++    } else {
++        temp = NULL;
++    }
++    ret = sigprocmask(how, temp, oldset);
++
++    /* Force set state of SIGSEGV, may be best for some apps, maybe not so good
++     * This is not required for qemu to work */
++    if (oldset) {
++        sigaddset(oldset, SIGSEGV);
++    }
++    return ret;
+ }
+ 
+ void process_pending_signals(CPUArchState *cpu_env)

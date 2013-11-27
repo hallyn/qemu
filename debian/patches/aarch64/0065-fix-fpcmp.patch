@@ -1,0 +1,75 @@
+From fc169c4bd0d9038db262f292f15bcba7d60682e7 Mon Sep 17 00:00:00 2001
+From: Alexander Graf <agraf@suse.de>
+Date: Tue, 19 Feb 2013 00:54:46 +0100
+Subject: [PATCH 065/169] fix fpcmp
+
+---
+ target-arm/helper.c        | 17 +++++++++--------
+ target-arm/translate-a64.c | 11 ++++++++++-
+ 2 files changed, 19 insertions(+), 9 deletions(-)
+
+Index: qemu-1.6.0+dfsg/target-arm/helper.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/helper.c	2013-11-05 22:23:29.559399434 +0000
++++ qemu-1.6.0+dfsg/target-arm/helper.c	2013-11-05 22:23:29.559399434 +0000
+@@ -3623,10 +3623,10 @@
+ { \
+     uint32_t flags; \
+     switch(type ## _compare_quiet(a, b, &env->vfp.fp_status)) { \
+-    case 0: flags = 0x6; break; \
+-    case -1: flags = 0x8; break; \
+-    case 1: flags = 0x2; break; \
+-    default: case 2: flags = 0x3; break; \
++    case float_relation_equal:              flags = PSTATE_Z; break; \
++    case float_relation_less:               flags = PSTATE_N; break; \
++    case float_relation_greater:            flags = PSTATE_C; break; \
++    default: case float_relation_unordered: flags = PSTATE_V; break; \
+     } \
+     return flags; \
+ } \
+@@ -3640,11 +3640,12 @@
+ { \
+     uint32_t flags; \
+     switch(type ## _compare(a, b, &env->vfp.fp_status)) { \
+-    case 0: flags = 0x6; break; \
+-    case -1: flags = 0x8; break; \
+-    case 1: flags = 0x2; break; \
+-    default: case 2: flags = 0x3; break; \
++    case float_relation_equal:              flags = PSTATE_Z; break; \
++    case float_relation_less:               flags = PSTATE_N; break; \
++    case float_relation_greater:            flags = PSTATE_C; break; \
++    default: case float_relation_unordered: flags = PSTATE_V; break; \
+     } \
++    qemu_log("fcmpe: %d\n", flags); \
+     return flags; \
+ } \
+ void VFP_HELPER(fpscr_cmpe, p)(type a, type b, CPUARMState *env) \
+Index: qemu-1.6.0+dfsg/target-arm/translate-a64.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/translate-a64.c	2013-11-05 22:23:29.559399434 +0000
++++ qemu-1.6.0+dfsg/target-arm/translate-a64.c	2013-11-05 22:23:29.559399434 +0000
+@@ -91,6 +91,15 @@
+         env->pstate & PSTATE_C ? 'c' : '.',
+         env->pstate & PSTATE_V ? 'v' : '.');
+     cpu_fprintf(f, "\n");
++
++    if (1) { //flags & CPU_DUMP_FPU) {
++        int numvfpregs = 32;
++        for (i = 0; i < numvfpregs; i++) {
++            uint64_t v = float64_val(env->vfp.regs[i * 2]);
++            cpu_fprintf(f, "d%02d=%016" PRIx64 "\n", i, v);
++        }
++        cpu_fprintf(f, "FPSCR: %08x\n", (int)env->vfp.xregs[ARM_VFP_FPSCR]);
++    }
+ }
+ 
+ static int get_bits(uint32_t inst, int start, int len)
+@@ -1772,7 +1781,7 @@
+     int opc = get_bits(insn, 3, 2);
+     int rn = get_bits(insn, 5, 5);
+     int rm = get_bits(insn, 16, 5);
+-    bool is_32bit = get_bits(insn, 22, 1);
++    bool is_32bit = !get_bits(insn, 22, 1);
+     bool is_cmp_with_zero = get_bits(opc, 0, 1);
+     int freg_offs_n = offsetof(CPUARMState, vfp.regs[rn * 2]);
+     int freg_offs_m = offsetof(CPUARMState, vfp.regs[rm * 2]);

@@ -1,0 +1,91 @@
+From 87fd8ca0a7b244dfbf85299881d962505896caf7 Mon Sep 17 00:00:00 2001
+From: Michael Matz <matz@suse.de>
+Date: Sun, 31 Mar 2013 06:20:32 +0200
+Subject: [PATCH 132/169] Increase MAX_OP_PER_INSTR
+
+The aarch64 multiple loads/stores generate a heap of instructions.
+Add some ifdefed debug code, and increase the limit.  We should
+use a helper or devise smaller sequences, sould be possible with
+interleaving and just 64bit loads.
+---
+ include/exec/exec-all.h |  4 +++-
+ target-arm/translate.c  | 19 +++++++++++++++++++
+ tcg/tcg.c               |  6 ++++++
+ 3 files changed, 28 insertions(+), 1 deletion(-)
+
+Index: qemu-1.6.0+dfsg/include/exec/exec-all.h
+===================================================================
+--- qemu-1.6.0+dfsg.orig/include/exec/exec-all.h	2013-11-05 22:23:42.963364736 +0000
++++ qemu-1.6.0+dfsg/include/exec/exec-all.h	2013-11-05 22:23:42.955364758 +0000
+@@ -44,7 +44,9 @@
+ typedef struct TranslationBlock TranslationBlock;
+ 
+ /* XXX: make safe guess about sizes */
+-#define MAX_OP_PER_INSTR 208
++/* The aarch64 multiple load/stores can get extremely long.
++   We rather should use helpers, not the silly inline sequences.  */
++#define MAX_OP_PER_INSTR 280
+ 
+ #if HOST_LONG_BITS == 32
+ #define MAX_OPC_PARAM_PER_ARG 2
+Index: qemu-1.6.0+dfsg/target-arm/translate.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/translate.c	2013-11-05 22:23:42.963364736 +0000
++++ qemu-1.6.0+dfsg/target-arm/translate.c	2013-11-05 22:23:42.955364758 +0000
+@@ -9931,6 +9931,10 @@
+     target_ulong next_page_start;
+     int num_insns;
+     int max_insns;
++#if 0
++    static int max_insn_size;
++    uint16_t *old_opc_ptr = tcg_ctx.gen_opc_buf;
++#endif
+ 
+     /* generate intermediate code */
+     pc_start = tb->pc;
+@@ -10094,6 +10098,14 @@
+          * Also stop translation when a page boundary is reached.  This
+          * ensures prefetch aborts occur at the right place.  */
+         num_insns ++;
++#if 0
++	if (tcg_ctx.gen_opc_ptr - old_opc_ptr > max_insn_size) {
++	    max_insn_size = tcg_ctx.gen_opc_ptr - old_opc_ptr;
++	    printf ("AAAA: max_size=%d\n", max_insn_size);
++	}
++	old_opc_ptr = tcg_ctx.gen_opc_ptr;
++//        printf ("ZZZZ, num_insns=%d, bufsz=%d\n", num_insns, tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf);
++#endif
+     } while (!dc->is_jmp && tcg_ctx.gen_opc_ptr < gen_opc_end &&
+              !cs->singlestep_enabled &&
+              !singlestep &&
+@@ -10199,6 +10211,13 @@
+         qemu_log("\n");
+     }
+ #endif
++
++    if ((tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf) >= OPC_BUF_SIZE) {
++        qemu_log ("ARGH, insn buffer overrun: num_insns=%d, bufsz=%d\n",
++		  num_insns, (int)(tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf));
++	exit (1);
++    }
++
+     if (search_pc) {
+         j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
+         lj++;
+Index: qemu-1.6.0+dfsg/tcg/tcg.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/tcg/tcg.c	2013-11-05 22:23:42.963364736 +0000
++++ qemu-1.6.0+dfsg/tcg/tcg.c	2013-11-05 22:23:42.955364758 +0000
+@@ -2280,6 +2280,12 @@
+     s->opt_time -= profile_getclock();
+ #endif
+ 
++#if 0
++    if ((s->gen_opc_ptr - s->gen_opc_buf) >= OPC_BUF_SIZE) {
++      printf ("XXXXXX\n");
++      exit (1);
++    }
++#endif
+ #ifdef USE_TCG_OPTIMIZATIONS
+     s->gen_opparam_ptr =
+         tcg_optimize(s, s->gen_opc_ptr, s->gen_opparam_buf, tcg_op_defs);

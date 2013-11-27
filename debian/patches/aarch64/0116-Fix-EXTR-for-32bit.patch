@@ -1,0 +1,67 @@
+From b003867b3b8eaac4848fb13320d30ce6bb9bf55b Mon Sep 17 00:00:00 2001
+From: Michael Matz <matz@suse.de>
+Date: Sun, 24 Mar 2013 05:27:21 +0100
+Subject: [PATCH 116/169] Fix EXTR for 32bit
+
+This fixes some minor things in shifti and handle_add (for ADD extended
+reg, which uses SP[] for input always, also when setflags).  And it
+fixes one major bug in handle_extr, where it wasn't using the extended
+input, but the input reg itself for shifting, leading to leaking bits
+in ROR immediate (an alias of EXTR), which in turn leads to problems
+in crypt code (here SHA1).  Now libgcrypt works.
+---
+ target-arm/translate-a64.c | 16 ++++++++++------
+ 1 file changed, 10 insertions(+), 6 deletions(-)
+
+Index: qemu-1.6.0+dfsg/target-arm/translate-a64.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/translate-a64.c	2013-11-05 22:23:39.767373009 +0000
++++ qemu-1.6.0+dfsg/target-arm/translate-a64.c	2013-11-05 22:23:39.763373020 +0000
+@@ -652,7 +652,10 @@
+ 
+     if (!shift) {
+         r = tcg_temp_new_i64();
+-        tcg_gen_mov_i64(r, cpu_reg(reg));
++	if (is_32bit)
++	  tcg_gen_ext32u_i64 (r, cpu_reg(reg));
++	else
++	  tcg_gen_mov_i64(r, cpu_reg(reg));
+         return r;
+     }
+ 
+@@ -816,13 +819,14 @@
+     tcg_gen_mov_i64(tcg_src, cpu_reg(source));
+     tcg_dst = cpu_reg(dest);
+     if (extend) {
+-        extend_type = get_bits(insn, 13, 3);
+-        if ((shift_amount & 0x7) > 4) {
++        extend_type = (shift_amount >> 3) & 0x7;
++	shift_amount &= 7;
++        if (shift_amount > 4) {
+             /* reserved value */
+             unallocated_encoding(s);
+         }
++	tcg_gen_mov_i64(tcg_src, cpu_reg_sp(source));
+         if (!setflags) {
+-            tcg_gen_mov_i64(tcg_src, cpu_reg_sp(source));
+             tcg_dst = cpu_reg_sp(dest);
+         }
+     } else {
+@@ -838,7 +842,7 @@
+ 
+     if (extend) {
+         tcg_op2 = tcg_temp_new_i64();
+-        reg_extend(tcg_op2, shift_amount >> 3, shift_amount & 0x7, rm);
++        reg_extend(tcg_op2, extend_type, shift_amount, rm);
+     } else {
+         tcg_op2 = get_shifti(rm, shift_type, shift_amount, is_32bit);
+     }
+@@ -1373,7 +1377,7 @@
+     } else {
+         tcg_gen_mov_i64(tcg_tmp, cpu_reg(rm));
+     }
+-    tcg_gen_shri_i64(tcg_res, cpu_reg(rm), imms);
++    tcg_gen_shri_i64(tcg_res, tcg_tmp, imms);
+     tcg_gen_shli_i64(tcg_tmp, cpu_reg(rn), bitsize - imms);
+     tcg_gen_or_i64(cpu_reg(rd), tcg_tmp, tcg_res);
+     if (is_32bit) {

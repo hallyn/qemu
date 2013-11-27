@@ -1,0 +1,39 @@
+From f596ed016d4f85c9e11c2e68c889088ce51fcbd2 Mon Sep 17 00:00:00 2001
+From: Alexander Graf <agraf@suse.de>
+Date: Thu, 13 Dec 2012 14:29:22 +0100
+Subject: [PATCH 036/169] linux-user: lseek: explicitly cast end offsets to
+ signed
+
+When doing lseek, SEEK_END indicates that the offset is a signed variable
+that is usually negative, while and other SEEK indicates that it's unsigned.
+
+When converting from 32bit to 64bit parameters, we need to take this into
+account and enable SEEK_END to be negative, while other SEEKs usually indicate
+absolute position which we need to maintain as unsigned.
+
+Signed-off-by: Alexander Graf <agraf@suse.de>
+---
+ linux-user/syscall.c | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)
+
+Index: qemu-1.6.0+dfsg/linux-user/syscall.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/linux-user/syscall.c	2013-11-05 22:23:22.903416666 +0000
++++ qemu-1.6.0+dfsg/linux-user/syscall.c	2013-11-05 22:23:22.903416666 +0000
+@@ -5553,9 +5553,14 @@
+     case TARGET_NR_oldstat:
+         goto unimplemented;
+ #endif
+-    case TARGET_NR_lseek:
+-        ret = get_errno(lseek(arg1, arg2, arg3));
++    case TARGET_NR_lseek: {
++        off_t off = arg2;
++        if (arg3 == SEEK_END) {
++            off = (abi_long)arg2;
++        }
++        ret = get_errno(lseek(arg1, off, arg3));
+         break;
++    }
+ #if defined(TARGET_NR_getxpid) && defined(TARGET_ALPHA)
+     /* Alpha specific */
+     case TARGET_NR_getxpid:

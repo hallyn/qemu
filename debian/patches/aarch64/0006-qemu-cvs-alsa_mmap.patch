@@ -1,0 +1,45 @@
+From 2a26c08a0322197d68cbeae6877f8fe0f31bf50a Mon Sep 17 00:00:00 2001
+From: Alexander Graf <agraf@suse.de>
+Date: Tue, 14 Apr 2009 16:24:15 +0200
+Subject: [PATCH 006/169] qemu-cvs-alsa_mmap
+
+Hack to prevent ALSA from using mmap() interface to simplify emulation.
+
+Signed-off-by: Alexander Graf <agraf@suse.de>
+Signed-off-by: Ulrich Hecht <uli@suse.de>
+---
+ linux-user/mmap.c | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
+
+Index: qemu-1.6.0+dfsg/linux-user/mmap.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/linux-user/mmap.c	2013-11-05 22:23:16.863432302 +0000
++++ qemu-1.6.0+dfsg/linux-user/mmap.c	2013-11-05 22:23:16.863432302 +0000
+@@ -366,6 +366,9 @@
+     }
+ }
+ 
++#define SNDRV_PCM_MMAP_OFFSET_STATUS  0x80000000
++#define SNDRV_PCM_MMAP_OFFSET_CONTROL 0x81000000
++
+ /* NOTE: all the constants are the HOST ones */
+ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
+                      int flags, int fd, abi_ulong offset)
+@@ -400,6 +403,17 @@
+     }
+ #endif
+ 
++    /* Alsa tries to communcate with the kernel via mmap. This usually
++     * is a good idea when user- and kernelspace are running on the
++     * same architecture but does not work out when not. To make alsa
++     * not to use mmap, we can just have it fail on the mmap calls that
++     * would initiate this.
++     */
++    if(offset == SNDRV_PCM_MMAP_OFFSET_STATUS || offset == SNDRV_PCM_MMAP_OFFSET_CONTROL) {
++	errno = EINVAL;
++	return -1;
++    }
++
+     if (offset & ~TARGET_PAGE_MASK) {
+         errno = EINVAL;
+         goto fail;

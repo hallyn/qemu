@@ -1,0 +1,116 @@
+From 33137f8a660750d7d8598c7e467f4ccc8dc5ef85 Mon Sep 17 00:00:00 2001
+From: Michael Matz <matz@suse.de>
+Date: Sat, 23 Mar 2013 04:53:44 +0100
+Subject: [PATCH 112/169] Fix the pstate flags helpers
+
+ADCS and SBCS/SUBS sometimes gave the wrong results
+for the C and V flags.  This fixes it.
+---
+ target-arm/helper-a64.c | 52 ++++++++++++-------------------------------------
+ 1 file changed, 12 insertions(+), 40 deletions(-)
+
+Index: qemu-1.6.0+dfsg/target-arm/helper-a64.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/helper-a64.c	2013-11-05 22:23:38.971375069 +0000
++++ qemu-1.6.0+dfsg/target-arm/helper-a64.c	2013-11-05 22:23:38.967375080 +0000
+@@ -7,8 +7,6 @@
+ 
+ uint32_t HELPER(pstate_add)(uint32_t pstate, uint64_t a1, uint64_t a2, uint64_t ar)
+ {
+-    int64_t s1 = a1;
+-    int64_t s2 = a2;
+     int64_t sr = ar;
+ 
+     pstate &= ~(PSTATE_N | PSTATE_Z | PSTATE_C | PSTATE_V);
+@@ -21,11 +19,15 @@
+         pstate |= PSTATE_Z;
+     }
+ 
+-    if (ar && (ar < a1)) {
++    if (ar < a1) {
+         pstate |= PSTATE_C;
++    } else if (ar != (a1 + a2) && ar == a1) {
++	/* If result isn't what we expect it must be because we added
++	   in some carry.  If so we also produce a carry when ar == a1. */
++	pstate |= PSTATE_C;
+     }
+ 
+-    if ((s1 > 0 && s2 > 0 && sr < 0) || (s1 < 0 && s2 < 0 && sr > 0)) {
++    if ((int64_t)((a1 ^ a2 ^ -1) & (a1 ^ ar)) < 0) {
+         pstate |= PSTATE_V;
+     }
+ 
+@@ -38,8 +40,6 @@
+     uint32_t a2 = x2;
+     uint32_t ar = xr;
+ 
+-    int32_t s1 = a1;
+-    int32_t s2 = a2;
+     int32_t sr = ar;
+ 
+     pstate &= ~(PSTATE_N | PSTATE_Z | PSTATE_C | PSTATE_V);
+@@ -52,11 +52,13 @@
+         pstate |= PSTATE_Z;
+     }
+ 
+-    if (ar && (ar < a1)) {
++    if (ar < a1) {
+         pstate |= PSTATE_C;
++    } else if (ar != (a1 + a2) && ar == a1) {
++	pstate |= PSTATE_C;
+     }
+ 
+-    if ((s1 > 0 && s2 > 0 && sr < 0) || (s1 < 0 && s2 < 0 && sr > 0)) {
++    if ((int32_t)((a1 ^ a2 ^ -1) & (a1 ^ ar)) < 0) {
+         pstate |= PSTATE_V;
+     }
+ 
+@@ -65,23 +67,7 @@
+ 
+ uint32_t HELPER(pstate_sub)(uint32_t pstate, uint64_t a1, uint64_t a2, uint64_t ar)
+ {
+-    int64_t sr = ar;
+-    int64_t s1 = a1;
+-    int64_t s2 = a2;
+-
+-    pstate = helper_pstate_add(pstate, a1, a2, ar);
+-
+-    pstate &= ~(PSTATE_C | PSTATE_V);
+-
+-    if (a2 <= a1) {
+-        pstate |= PSTATE_C;
+-    }
+-
+-    /* XXX check if this is the only special case */
+-    if ((!a1 && a2 == 0x8000000000000000ULL) || (s1 > 0 && s2 < 0 && sr < 0) || (s1 < 0 && s2 > 0 && sr > 0)) {
+-        pstate |= PSTATE_V;
+-    }
+-
++    pstate = helper_pstate_add(pstate, a1, ~a2, ar);
+     return pstate;
+ }
+ 
+@@ -90,22 +76,8 @@
+     uint32_t a1 = x1;
+     uint32_t a2 = x2;
+     uint32_t ar = xr;
+-    int32_t sr = ar;
+-    int32_t s1 = a1;
+-    int32_t s2 = a2;
+-
+-    pstate = helper_pstate_add32(pstate, a1, a2, ar);
+-
+-    pstate &= ~(PSTATE_C | PSTATE_V);
+-
+-    if (a2 <= a1) {
+-        pstate |= PSTATE_C;
+-    }
+-
+-    if ((!a1 && a2 == 0x80000000ULL) || (s1 > 0 && s2 < 0 && sr < 0) || (s1 < 0 && s2 > 0 && sr > 0)) {
+-        pstate |= PSTATE_V;
+-    }
+ 
++    pstate = helper_pstate_add32(pstate, a1, ~a2, ar);
+     return pstate;
+ }
+ 

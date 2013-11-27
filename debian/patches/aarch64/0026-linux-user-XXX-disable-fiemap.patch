@@ -1,0 +1,26 @@
+From dd4ce2d7bed71bc27c5f7af4b109d99582055060 Mon Sep 17 00:00:00 2001
+From: Alexander Graf <agraf@suse.de>
+Date: Tue, 21 Aug 2012 14:20:40 +0200
+Subject: [PATCH 026/169] linux-user: XXX disable fiemap
+
+agraf: fiemap breaks in libarchive. Disable it for now.
+---
+ linux-user/syscall.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+Index: qemu-1.6.0+dfsg/linux-user/syscall.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/linux-user/syscall.c	2013-11-05 22:23:20.903421843 +0000
++++ qemu-1.6.0+dfsg/linux-user/syscall.c	2013-11-05 22:23:20.903421843 +0000
+@@ -3183,6 +3183,11 @@
+     uint32_t outbufsz;
+     int free_fm = 0;
+ 
++    if (1) {
++        /* XXX agraf: fiemap breaks for me */
++        return -TARGET_EINVAL;
++    }
++
+     assert(arg_type[0] == TYPE_PTR);
+     assert(ie->access == IOC_RW);
+     arg_type++;

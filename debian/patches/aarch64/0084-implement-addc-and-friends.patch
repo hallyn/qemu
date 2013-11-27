@@ -1,0 +1,44 @@
+From 561be3c12250789055af3a583b0bec63f74c5b89 Mon Sep 17 00:00:00 2001
+From: Alexander Graf <agraf@suse.de>
+Date: Wed, 27 Feb 2013 23:36:19 +0100
+Subject: [PATCH 084/169] implement addc and friends
+
+---
+ target-arm/translate-a64.c | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+Index: qemu-1.6.0+dfsg/target-arm/translate-a64.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/translate-a64.c	2013-11-05 22:23:33.363389587 +0000
++++ qemu-1.6.0+dfsg/target-arm/translate-a64.c	2013-11-05 22:23:33.359389597 +0000
+@@ -762,6 +762,7 @@
+     bool setflags = get_bits(insn, 29, 1);
+     bool sub_op = get_bits(insn, 30, 1);
+     bool is_32bit = !get_bits(insn, 31, 1);
++    bool is_carry = (get_bits(insn, 24, 5) == 0x1a);
+     int extend_type = 0;
+     TCGv_i64 tcg_op2;
+     TCGv_i64 tcg_src = tcg_temp_new_i64();
+@@ -813,6 +814,13 @@
+         tcg_gen_add_i64(tcg_result, tcg_src, tcg_op2);
+     }
+ 
++    if (is_carry) {
++        TCGv_i64 tcg_carry = tcg_temp_new_i64();
++        tcg_gen_shri_i64(tcg_carry, pstate, PSTATE_C);
++        tcg_gen_andi_i64(tcg_carry, tcg_carry, 1);
++        tcg_gen_add_i64(tcg_result, tcg_result, tcg_carry);
++    }
++
+     if (setflags) {
+         setflags_add(sub_op, is_32bit, tcg_src, tcg_op2, tcg_result);
+     }
+@@ -2480,6 +2488,8 @@
+             handle_rev(s, insn);
+         } else if ((insn & 0x7ffff800) == 0x5ac01000) {
+             handle_clz(s, insn);
++        } else if (!get_bits(insn, 21, 3) && !get_bits(insn, 10, 6)) {
++            handle_add(s, insn);
+         } else {
+             goto unknown_insn;
+         }

@@ -1,0 +1,42 @@
+From 74e21fa0aaf7a25594f310c47e28676b48103bf2 Mon Sep 17 00:00:00 2001
+From: Alexander Graf <agraf@suse.de>
+Date: Mon, 20 Aug 2012 00:02:52 +0200
+Subject: [PATCH 024/169] linux-user: implement FS_IOC_GETFLAGS ioctl
+
+Signed-off-by: Alexander Graf <agraf@suse.de>
+
+---
+
+v1 -> v2:
+
+  - use TYPE_LONG instead of TYPE_INT
+---
+ linux-user/ioctls.h       | 1 +
+ linux-user/syscall_defs.h | 2 ++
+ 2 files changed, 3 insertions(+)
+
+Index: qemu-1.6.0+dfsg/linux-user/ioctls.h
+===================================================================
+--- qemu-1.6.0+dfsg.orig/linux-user/ioctls.h	2013-11-05 22:23:20.503422878 +0000
++++ qemu-1.6.0+dfsg/linux-user/ioctls.h	2013-11-05 22:23:20.499422889 +0000
+@@ -86,6 +86,7 @@
+      IOCTL_SPECIAL(FS_IOC_FIEMAP, IOC_W | IOC_R, do_ioctl_fs_ioc_fiemap,
+                    MK_PTR(MK_STRUCT(STRUCT_fiemap)))
+ #endif
++  IOCTL(FS_IOC_GETFLAGS, IOC_R, MK_PTR(TYPE_LONG))
+ 
+   IOCTL(SIOCATMARK, 0, TYPE_NULL)
+   IOCTL(SIOCGIFNAME, IOC_RW, MK_PTR(TYPE_INT))
+Index: qemu-1.6.0+dfsg/linux-user/syscall_defs.h
+===================================================================
+--- qemu-1.6.0+dfsg.orig/linux-user/syscall_defs.h	2013-11-05 22:23:20.503422878 +0000
++++ qemu-1.6.0+dfsg/linux-user/syscall_defs.h	2013-11-05 22:23:20.499422889 +0000
+@@ -2391,6 +2391,8 @@
+ #define TARGET_MTIOCGET        TARGET_IOR('m', 2, struct mtget)
+ #define TARGET_MTIOCPOS        TARGET_IOR('m', 3, struct mtpos)
+ 
++#define TARGET_FS_IOC_GETFLAGS TARGET_IORU('f', 1)
++
+ struct target_sysinfo {
+     abi_long uptime;                /* Seconds since boot */
+     abi_ulong loads[3];             /* 1, 5, and 15 minute load averages */

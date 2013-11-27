@@ -1,0 +1,101 @@
+From a91f7628ea7b91f383dd3dc42edd8f30bd8ddb15 Mon Sep 17 00:00:00 2001
+From: Michael Matz <matz@suse.de>
+Date: Mon, 22 Jul 2013 17:07:26 +0200
+Subject: [PATCH 158/169] aarch64: Fix UZP/ZIP/TRN
+
+This was overwriting the destination register in-place, which is
+wrong when it overlaps with one of the inputs.
+---
+ target-arm/translate-a64.c | 43 +++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 39 insertions(+), 4 deletions(-)
+
+Index: qemu-1.6.0+dfsg/target-arm/translate-a64.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/translate-a64.c	2013-11-05 22:23:48.223351122 +0000
++++ qemu-1.6.0+dfsg/target-arm/translate-a64.c	2013-11-05 22:23:48.219351132 +0000
+@@ -2911,8 +2911,9 @@
+     int freg_offs_n = offsetof(CPUARMState, vfp.regs[rn * 2]);
+     int freg_offs_m = offsetof(CPUARMState, vfp.regs[rm * 2]);
+     TCGv_i64 tcg_res = tcg_temp_new_i64();
++    TCGv_i64 tcg_resl, tcg_resh;
+     int ebytes = (1 << size);
+-    int i;
++    int i, ofs;
+     int datasize = is_q ? 16 : 8;
+     int elements = datasize / ebytes;
+     bool part = opcode & 4;
+@@ -2922,6 +2923,13 @@
+ 	return;
+     }
+ 
++    tcg_resl = tcg_temp_new_i64();
++    tcg_gen_movi_i64(tcg_resl, 0);
++    if (is_q) {
++	tcg_resh = tcg_temp_new_i64();
++	tcg_gen_movi_i64(tcg_resh, 0);
++    }
++
+     switch (opcode & 3) {
+     case 1: /* UZP1/2 */
+ 	for (i = 0; i < datasize; i += ebytes) {
+@@ -2933,7 +2941,14 @@
+ 	      simd_ld(tcg_res,
+ 		      freg_offs_m + 2 * (i - datasize / 2) + part * ebytes,
+ 		      size, false);
+-	    simd_st(tcg_res, freg_offs_d + i, size);
++	    ofs = i;
++	    if (ofs < 8) {
++		tcg_gen_shli_i64(tcg_res, tcg_res, ofs * 8);
++		tcg_gen_or_i64(tcg_resl, tcg_resl, tcg_res);
++	    } else {
++		tcg_gen_shli_i64(tcg_res, tcg_res, (ofs - 8) * 8);
++		tcg_gen_or_i64(tcg_resh, tcg_resh, tcg_res);
++	    }
+ 	}
+ 	break;
+     case 2: /* TRN1/2 */
+@@ -2944,7 +2959,14 @@
+ 	    else
+ 	      simd_ld(tcg_res, freg_offs_n + ((i & ~1) + part) * ebytes,
+ 		      size, false);
+-	    simd_st(tcg_res, freg_offs_d + i * ebytes, size);
++	    ofs = i * ebytes;
++	    if (ofs < 8) {
++		tcg_gen_shli_i64(tcg_res, tcg_res, ofs * 8);
++		tcg_gen_or_i64(tcg_resl, tcg_resl, tcg_res);
++	    } else {
++		tcg_gen_shli_i64(tcg_res, tcg_res, (ofs - 8) * 8);
++		tcg_gen_or_i64(tcg_resh, tcg_resh, tcg_res);
++	    }
+ 	}
+ 	break;
+     case 3: /* ZIP1/2 */
+@@ -2957,7 +2979,14 @@
+ 	      simd_ld(tcg_res, freg_offs_m + (i >> 1) * ebytes, size, false);
+ 	    else
+ 	      simd_ld(tcg_res, freg_offs_n + (i >> 1) * ebytes, size, false);
+-	    simd_st(tcg_res, freg_offs_d + i * ebytes, size);
++	    ofs = i * ebytes;
++	    if (ofs < 8) {
++		tcg_gen_shli_i64(tcg_res, tcg_res, ofs * 8);
++		tcg_gen_or_i64(tcg_resl, tcg_resl, tcg_res);
++	    } else {
++		tcg_gen_shli_i64(tcg_res, tcg_res, (ofs - 8) * 8);
++		tcg_gen_or_i64(tcg_resh, tcg_resh, tcg_res);
++	    }
+ 	}
+ 	break;
+     default:
+@@ -2966,6 +2995,12 @@
+     }
+ 
+     tcg_temp_free_i64(tcg_res);
++    if (is_q) {
++	simd_st(tcg_resh, freg_offs_d + sizeof(float64), 3);
++	tcg_temp_free_i64(tcg_resh);
++    }
++    simd_st(tcg_resl, freg_offs_d, 3);
++    tcg_temp_free_i64(tcg_resl);
+ 
+     if (!is_q) {
+         TCGv_i64 tcg_zero = tcg_const_i64(0);

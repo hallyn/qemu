@@ -1,0 +1,27 @@
+From 17155738bf00ad155ad31adfe36ba97fdbdbae55 Mon Sep 17 00:00:00 2001
+From: Alexander Graf <agraf@suse.de>
+Date: Sun, 11 Dec 2011 01:21:51 +0100
+Subject: [PATCH 013/169] linux-user: be silent about capget failures
+
+Complaining about capget doesn't buy us anything, but makes %check
+fail in certain builds. So better not complain about its missing
+implementation and go on with life :)
+
+Signed-off-by: Alexander Graf <agraf@suse.de>
+---
+ linux-user/syscall.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+Index: qemu-1.6.0+dfsg/linux-user/syscall.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/linux-user/syscall.c	2013-11-05 22:23:18.307428565 +0000
++++ qemu-1.6.0+dfsg/linux-user/syscall.c	2013-11-05 22:23:18.303428575 +0000
+@@ -7609,7 +7609,7 @@
+         unlock_user(p, arg1, ret);
+         break;
+     case TARGET_NR_capget:
+-        goto unimplemented;
++        goto unimplemented_nowarn;
+     case TARGET_NR_capset:
+         goto unimplemented;
+     case TARGET_NR_sigaltstack:

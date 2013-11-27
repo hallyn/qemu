@@ -1,0 +1,103 @@
+From cbc98b16e804536bce767635845c3963c3bf64a0 Mon Sep 17 00:00:00 2001
+From: Andreas Schwab <schwab@suse.de>
+Date: Sun, 22 Sep 2013 22:15:37 +0200
+Subject: [PATCH 163/169] aarch64: Fix FCVTZU for single float
+
+Implement float32 to uint64 conversion and use it for FCVTZU.
+
+Signed-off-by: Andreas Schwab <schwab@suse.de>
+---
+ fpu/softfloat.c         | 52 +++++++++++++++++++++++++++++++++++++++++++++++++
+ include/fpu/softfloat.h |  2 ++
+ target-arm/helper.c     |  2 +-
+ 3 files changed, 55 insertions(+), 1 deletion(-)
+
+Index: qemu-1.6.0+dfsg/fpu/softfloat.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/fpu/softfloat.c	2013-11-05 22:23:49.279348390 +0000
++++ qemu-1.6.0+dfsg/fpu/softfloat.c	2013-11-05 22:23:49.275348400 +0000
+@@ -6513,6 +6513,58 @@
+     return res;
+ }
+ 
++uint64_t float32_to_uint64 (float32 a STATUS_PARAM)
++{
++    flag aSign;
++    int_fast16_t aExp;
++    uint64_t res;
++
++    aExp = extractFloat32Exp(a);
++    aSign = extractFloat32Sign(a);
++
++    if (aSign) {
++	res = 0;
++	float_raise(float_flag_invalid STATUS_VAR);
++    } else {
++	/* If a > 2^63 (but < 2^64) it won't fit into a signed int,
++	   so half the value, convert to int, and double it again.  */
++	if (aExp == 0xbe)
++	  a = packFloat32(0, aExp - 1, extractFloat32Frac(a));
++
++	res = float32_to_int64(a STATUS_VAR);
++	if (aExp == 0xbe)
++	  res <<= 1;
++    }
++
++    return res;
++}
++
++uint64_t float32_to_uint64_round_to_zero (float32 a STATUS_PARAM)
++{
++    flag aSign;
++    int_fast16_t aExp;
++    uint64_t res;
++
++    aExp = extractFloat32Exp(a);
++    aSign = extractFloat32Sign(a);
++
++    if (aSign) {
++	res = 0;
++	float_raise(float_flag_invalid STATUS_VAR);
++    } else {
++	/* If a > 2^63 (but < 2^64) it won't fit into a signed int,
++	   so half the value, convert to int, and double it again.  */
++	if (aExp == 0xbe)
++	  a = packFloat32(0, aExp - 1, extractFloat32Frac(a));
++
++	res = float32_to_int64_round_to_zero(a STATUS_VAR);
++	if (aExp == 0xbe)
++	  res <<= 1;
++    }
++
++    return res;
++}
++
+ uint32 float64_to_uint32( float64 a STATUS_PARAM )
+ {
+     int64_t v;
+Index: qemu-1.6.0+dfsg/include/fpu/softfloat.h
+===================================================================
+--- qemu-1.6.0+dfsg.orig/include/fpu/softfloat.h	2013-11-05 22:23:49.279348390 +0000
++++ qemu-1.6.0+dfsg/include/fpu/softfloat.h	2013-11-05 22:23:49.275348400 +0000
+@@ -275,6 +275,8 @@
+ uint32 float32_to_uint32_round_to_zero( float32 STATUS_PARAM );
+ int64 float32_to_int64( float32 STATUS_PARAM );
+ int64 float32_to_int64_round_to_zero( float32 STATUS_PARAM );
++uint64 float32_to_uint64 (float32 a STATUS_PARAM);
++uint64 float32_to_uint64_round_to_zero (float32 a STATUS_PARAM);
+ float64 float32_to_float64( float32 STATUS_PARAM );
+ floatx80 float32_to_floatx80( float32 STATUS_PARAM );
+ float128 float32_to_float128( float32 STATUS_PARAM );
+Index: qemu-1.6.0+dfsg/target-arm/helper.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/helper.c	2013-11-05 22:23:49.279348390 +0000
++++ qemu-1.6.0+dfsg/target-arm/helper.c	2013-11-05 22:23:49.279348390 +0000
+@@ -3797,7 +3797,7 @@
+ VFP_CONV_FIX(sq, s, 32, 64, int64, )
+ VFP_CONV_FIX(uh, s, 32, 32, uint16, u)
+ VFP_CONV_FIX(ul, s, 32, 32, uint32, u)
+-VFP_CONV_FIX(uq, s, 32, 64, int64, u)
++VFP_CONV_FIX(uq, s, 32, 64, uint64, u)
+ #undef VFP_CONV_FIX
+ 
+ /* Half precision conversions.  */

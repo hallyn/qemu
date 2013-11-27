@@ -1,0 +1,151 @@
+From 451266feb7ed68d8f8fa26c1632876313a770afd Mon Sep 17 00:00:00 2001
+From: Alexander Graf <agraf@suse.de>
+Date: Tue, 19 Feb 2013 23:54:52 +0100
+Subject: [PATCH 066/169] more fp, fix rbit
+
+---
+ fpu/softfloat.c            | 11 +++++++++++
+ target-arm/helper-a64.c    |  5 +++++
+ target-arm/helper.c        |  4 +++-
+ target-arm/helper.h        |  1 +
+ target-arm/translate-a64.c | 31 +++++++++++++++++++++++++++++--
+ 5 files changed, 49 insertions(+), 3 deletions(-)
+
+Index: qemu-1.6.0+dfsg/fpu/softfloat.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/fpu/softfloat.c	2013-11-05 22:23:29.767398897 +0000
++++ qemu-1.6.0+dfsg/fpu/softfloat.c	2013-11-05 22:23:29.763398905 +0000
+@@ -41,6 +41,7 @@
+ #include "config.h"
+ 
+ #include "fpu/softfloat.h"
++#include "assert.h"
+ 
+ /*----------------------------------------------------------------------------
+ | Primitive arithmetic functions, including multi-word arithmetic, and
+@@ -6552,11 +6553,21 @@
+ {
+     int64_t v;
+ 
++    v = float64_val(a);
++    if (v > int64_to_float64(INT64_MIN STATUS_VAR)) {
++        /* XXX */
++        assert(0);
++    }
++    return float64_to_int64_round_to_zero(a STATUS_VAR);
++#if 0
++    int64_t v;
++
+     v = float64_val(int64_to_float64(INT64_MIN STATUS_VAR));
+     v += float64_val(a);
+     v = float64_to_int64_round_to_zero(make_float64(v) STATUS_VAR);
+ 
+     return v - INT64_MIN;
++#endif
+ }
+ 
+ #define COMPARE(s, nan_exp)                                                  \
+Index: qemu-1.6.0+dfsg/target-arm/helper-a64.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/helper-a64.c	2013-11-05 22:23:29.767398897 +0000
++++ qemu-1.6.0+dfsg/target-arm/helper-a64.c	2013-11-05 22:23:29.763398905 +0000
+@@ -255,3 +255,8 @@
+     return clz64(x);
+ }
+ 
++float64 HELPER(rintd)(float64 x, void *fp_status)
++{
++    return float64_round_to_int(x, fp_status);
++}
++
+Index: qemu-1.6.0+dfsg/target-arm/helper.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/helper.c	2013-11-05 22:23:29.767398897 +0000
++++ qemu-1.6.0+dfsg/target-arm/helper.c	2013-11-05 22:23:29.763398905 +0000
+@@ -3726,12 +3726,14 @@
+ { \
+     float_status *fpst = fpstp; \
+     float##fsz tmp; \
++    uint##isz##_t r; \
+     if (float##fsz##_is_any_nan(x)) { \
+         float_raise(float_flag_invalid, fpst); \
+         return 0; \
+     } \
+     tmp = float##fsz##_scalbn(x, shift, fpst); \
+-    return float##fsz##_to_##itype##_round_to_zero(tmp, fpst); \
++    r = float##fsz##_to_##itype##_round_to_zero(tmp, fpst); \
++    return r; \
+ }
+ 
+ VFP_CONV_FIX(sh, d, 64, 64, int16, )
+Index: qemu-1.6.0+dfsg/target-arm/helper.h
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/helper.h	2013-11-05 22:23:29.767398897 +0000
++++ qemu-1.6.0+dfsg/target-arm/helper.h	2013-11-05 22:23:29.763398905 +0000
+@@ -485,6 +485,7 @@
+ DEF_HELPER_FLAGS_2(smulh, TCG_CALL_NO_RWG_SE, i64, i64, i64)
+ DEF_HELPER_FLAGS_1(rbit64, TCG_CALL_NO_RWG_SE, i64, i64)
+ DEF_HELPER_FLAGS_1(clz64, TCG_CALL_NO_RWG_SE, i64, i64)
++DEF_HELPER_FLAGS_2(rintd, TCG_CALL_NO_RWG_SE, f64, f64, ptr)
+ DEF_HELPER_1(tb_flush, void, env)
+ 
+ 
+Index: qemu-1.6.0+dfsg/target-arm/translate-a64.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/translate-a64.c	2013-11-05 22:23:29.767398897 +0000
++++ qemu-1.6.0+dfsg/target-arm/translate-a64.c	2013-11-05 22:23:29.763398905 +0000
+@@ -1225,10 +1225,19 @@
+     int rn = get_bits(insn, 5, 5);
+     int opc = get_bits(insn, 10, 2);
+     bool is_32bit = !get_bits(insn, 31, 1);
++    TCGv_i32 tcg_tmp;
+ 
+     switch (opc) {
+     case 0x0: /* RBIT */
+-        gen_helper_rbit64(cpu_reg(rd), cpu_reg(rn));
++        if (is_32bit) {
++            tcg_tmp = tcg_temp_new_i32();
++            tcg_gen_trunc_i64_i32(tcg_tmp, cpu_reg(rn));
++            gen_helper_rbit(tcg_tmp, tcg_tmp);
++            tcg_gen_extu_i32_i64(cpu_reg(rd), tcg_tmp);
++            tcg_temp_free_i32(tcg_tmp);
++        } else {
++            gen_helper_rbit64(cpu_reg(rd), cpu_reg(rn));
++        }
+         break;
+     case 0x1: /* REV16 */
+         tcg_gen_bswap16_i64(cpu_reg(rd), cpu_reg(rn));
+@@ -1603,7 +1612,13 @@
+     }
+ 
+     if (is_32bit) {
+-        /* XXX handle is_32bit case when doing scalar->single) */
++        tcg_tmp = tcg_temp_new_i64();
++        if (is_signed) {
++            tcg_gen_ext32s_i64(tcg_tmp, tcg_int);
++        } else {
++            tcg_gen_ext32u_i64(tcg_tmp, tcg_int);
++        }
++        tcg_int = tcg_tmp;
+     }
+     /* XXX handle rmode */
+ 
+@@ -1862,6 +1877,18 @@
+     case 0x2: /* FNEG */
+         gen_helper_vfp_negd(tcg_res, tcg_op);
+         break;
++    case 0x3: /* FSQRT */
++        gen_helper_vfp_sqrtd(tcg_res, tcg_op, cpu_env);
++        break;
++    case 0x8: /* FRINTN XXX add rounding mode */
++    case 0x9: /* FRINTP */
++    case 0xa: /* FRINTM */
++    case 0xb: /* FRINTZ */
++    case 0xc: /* FRINTA */
++    case 0xe: /* FRINTX */
++    case 0xf: /* FRINTI */
++        gen_helper_rintd(tcg_res, tcg_op, fpst);
++        break;
+     default:
+         unallocated_encoding(s);
+         return;

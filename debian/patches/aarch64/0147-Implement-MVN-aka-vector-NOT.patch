@@ -1,0 +1,36 @@
+From 653b6356d0e70e4de6dc753d88c6ba181d715cc0 Mon Sep 17 00:00:00 2001
+From: Michael Matz <matz@suse.de>
+Date: Mon, 8 Apr 2013 03:37:08 +0200
+Subject: [PATCH 147/169] Implement MVN aka vector NOT
+
+But not the other two insn with this opcode (CNT and RBIT).
+---
+ target-arm/translate-a64.c | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)
+
+Index: qemu-1.6.0+dfsg/target-arm/translate-a64.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/translate-a64.c	2013-11-05 22:23:46.015356837 +0000
++++ qemu-1.6.0+dfsg/target-arm/translate-a64.c	2013-11-05 22:23:46.011356846 +0000
+@@ -3115,6 +3115,21 @@
+ 	    simd_st(tcg_res, freg_offs_d + i, size);
+ 	}
+ 	break;
++    case 0x05: /* CNT / NOT / RBIT */
++	if (!is_u || size != 0) {
++	    /* CNT or RBIT */
++	    unallocated_encoding(s);
++	    return;
++	}
++	simd_ld(tcg_op1, freg_offs_n, 3, false);
++	tcg_gen_not_i64(tcg_res, tcg_op1);
++	simd_st(tcg_res, freg_offs_d, 3);
++	if (is_q) {
++	    simd_ld(tcg_op1, freg_offs_n + sizeof(float64), 3, false);
++	    tcg_gen_not_i64(tcg_res, tcg_op1);
++	    simd_st(tcg_res, freg_offs_d + sizeof(float64), 3);
++	}
++	break;
+ 
+     default:
+ 	unallocated_encoding(s);

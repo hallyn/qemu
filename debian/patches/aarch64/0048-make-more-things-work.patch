@@ -1,0 +1,676 @@
+From 88a792a09b9d8e8a3bb74b63db83d95e1f367cc1 Mon Sep 17 00:00:00 2001
+From: Alexander Graf <agraf@suse.de>
+Date: Mon, 11 Feb 2013 02:39:32 +0100
+Subject: [PATCH 048/169] make more things work
+
+---
+ linux-user/arm/syscall_nr.h |  50 +++++-----
+ linux-user/arm/target_cpu.h |  11 ++-
+ linux-user/syscall.c        |   3 +-
+ linux-user/syscall_defs.h   |  30 +++++-
+ target-arm/cpu.c            |   6 +-
+ target-arm/cpu.h            |   4 +-
+ target-arm/helper.c         |   9 ++
+ target-arm/helper.h         |   1 +
+ target-arm/translate-a64.c  | 224 +++++++++++++++++++++++++++++++++++++-------
+ target-arm/translate.c      |   2 +
+ 10 files changed, 268 insertions(+), 72 deletions(-)
+
+Index: qemu-1.6.0+dfsg/linux-user/arm/syscall_nr.h
+===================================================================
+--- qemu-1.6.0+dfsg.orig/linux-user/arm/syscall_nr.h	2013-11-05 22:23:25.923408847 +0000
++++ qemu-1.6.0+dfsg/linux-user/arm/syscall_nr.h	2013-11-05 22:23:25.911408877 +0000
+@@ -408,7 +408,7 @@
+ #define TARGET_NR_epoll_pwait 22
+ #define TARGET_NR_dup 23
+ #define TARGET_NR_dup3 24
+-#define TARGET_NR3264_fcntl 25
++#define TARGET_NR_fcntl 25
+ #define TARGET_NR_inotify_init1 26
+ #define TARGET_NR_inotify_add_watch 27
+ #define TARGET_NR_inotify_rm_watch 28
+@@ -426,10 +426,10 @@
+ #define TARGET_NR_mount 40
+ #define TARGET_NR_pivot_root 41
+ #define TARGET_NR_nfsservctl 42
+-#define TARGET_NR3264_statfs 43
+-#define TARGET_NR3264_fstatfs 44
+-#define TARGET_NR3264_truncate 45
+-#define TARGET_NR3264_ftruncate 46
++#define TARGET_NR_statfs 43
++#define TARGET_NR_fstatfs 44
++#define TARGET_NR_truncate 45
++#define TARGET_NR_ftruncate 46
+ #define TARGET_NR_fallocate 47
+ #define TARGET_NR_faccessat 48
+ #define TARGET_NR_chdir 49
+@@ -445,7 +445,7 @@
+ #define TARGET_NR_pipe2 59
+ #define TARGET_NR_quotactl 60
+ #define TARGET_NR_getdents64 61
+-#define TARGET_NR3264_lseek 62
++#define TARGET_NR_lseek 62
+ #define TARGET_NR_read 63
+ #define TARGET_NR_write 64
+ #define TARGET_NR_readv 65
+@@ -454,7 +454,7 @@
+ #define TARGET_NR_pwrite64 68
+ #define TARGET_NR_preadv 69
+ #define TARGET_NR_pwritev 70
+-#define TARGET_NR3264_sendfile 71
++#define TARGET_NR_sendfile 71
+ #define TARGET_NR_pselect6 72
+ #define TARGET_NR_ppoll 73
+ #define TARGET_NR_signalfd4 74
+@@ -462,8 +462,8 @@
+ #define TARGET_NR_splice 76
+ #define TARGET_NR_tee 77
+ #define TARGET_NR_readlinkat 78
+-#define TARGET_NR3264_fstatat 79
+-#define TARGET_NR3264_fstat 80
++#define TARGET_NR_fstatat64 79
++#define TARGET_NR_fstat 80
+ #define TARGET_NR_sync 81
+ #define TARGET_NR_fsync 82
+ #define TARGET_NR_fdatasync 83
+@@ -606,8 +606,8 @@
+ #define TARGET_NR_keyctl 219
+ #define TARGET_NR_clone 220
+ #define TARGET_NR_execve 221
+-#define TARGET_NR3264_mmap 222
+-#define TARGET_NR3264_fadvise64 223
++#define TARGET_NR_mmap 222
++#define TARGET_NR_fadvise64 223
+ #define TARGET_NR_swapon 224
+ #define TARGET_NR_swapoff 225
+ #define TARGET_NR_mprotect 226
+@@ -657,27 +657,27 @@
+ #define TARGET_NR_readlink 1035
+ #define TARGET_NR_symlink 1036
+ #define TARGET_NR_utimes 1037
+-#define TARGET_NR3264_stat 1038
+-#define TARGET_NR3264_lstat 1039
++#define TARGET_NR_stat 1038
++#define TARGET_NR_lstat 1039
+ #define TARGET_NR_pipe 1040
+ #define TARGET_NR_dup2 1041
+ #define TARGET_NR_epoll_create 1042
+ #define TARGET_NR_inotify_init 1043
+ #define TARGET_NR_eventfd 1044
+ #define TARGET_NR_signalfd 1045
+-#define TARGET_NR_sendfile 1046
+-#define TARGET_NR_ftruncate 1047
+-#define TARGET_NR_truncate 1048
+-#define TARGET_NR_stat 1049
+-#define TARGET_NR_lstat 1050
+-#define TARGET_NR_fstat 1051
+-#define TARGET_NR_fcntl 1052
+-#define TARGET_NR_fadvise64 1053
++#define TARGET_NR_sendfile64 1046
++#define TARGET_NR_ftruncate64 1047
++#define TARGET_NR_truncate64 1048
++#define TARGET_NR_stat64 1049
++#define TARGET_NR_lstat64 1050
++#define TARGET_NR_fstat64 1051
++#define TARGET_NR_fcntl64 1052
++//#define TARGET_NR_fadvise64 1053
+ #define TARGET_NR_newfstatat 1054
+-#define TARGET_NR_fstatfs 1055
+-#define TARGET_NR_statfs 1056
+-#define TARGET_NR_lseek 1057
+-#define TARGET_NR_mmap 1058
++#define TARGET_NR_fstatfs64 1055
++#define TARGET_NR_statfs64 1056
++#define TARGET_NR_lseek64 1057
++#define TARGET_NR_mmap64 1058
+ #define TARGET_NR_alarm 1059
+ #define TARGET_NR_getpgrp 1060
+ #define TARGET_NR_pause 1061
+Index: qemu-1.6.0+dfsg/linux-user/arm/target_cpu.h
+===================================================================
+--- qemu-1.6.0+dfsg.orig/linux-user/arm/target_cpu.h	2013-11-05 22:23:25.923408847 +0000
++++ qemu-1.6.0+dfsg/linux-user/arm/target_cpu.h	2013-11-05 22:23:25.911408877 +0000
+@@ -21,10 +21,15 @@
+ 
+ static inline void cpu_clone_regs(CPUARMState *env, target_ulong newsp)
+ {
+-    if (newsp) {
+-        env->regs[13] = newsp;
++    if (is_a64(env)) {
++	if (newsp)
++	  env->sp = newsp;
++	env->xregs[0] = 0;
++    } else {
++	if (newsp)
++	  env->regs[13] = newsp;
++	env->regs[0] = 0;
+     }
+-    env->regs[0] = 0;
+ }
+ 
+ static inline void cpu_set_tls(CPUARMState *env, target_ulong newtls)
+Index: qemu-1.6.0+dfsg/linux-user/syscall.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/linux-user/syscall.c	2013-11-05 22:23:25.923408847 +0000
++++ qemu-1.6.0+dfsg/linux-user/syscall.c	2013-11-05 22:23:25.911408877 +0000
+@@ -6545,7 +6545,8 @@
+ #endif
+ #ifdef TARGET_NR_mmap
+     case TARGET_NR_mmap:
+-#if (defined(TARGET_I386) && defined(TARGET_ABI32)) || defined(TARGET_ARM) || \
++#if (defined(TARGET_I386) && defined(TARGET_ABI32)) || \
++    (defined(TARGET_ARM) && defined(TARGET_ABI32)) || \
+     defined(TARGET_M68K) || defined(TARGET_CRIS) || defined(TARGET_MICROBLAZE) \
+     || defined(TARGET_S390X)
+         {
+Index: qemu-1.6.0+dfsg/linux-user/syscall_defs.h
+===================================================================
+--- qemu-1.6.0+dfsg.orig/linux-user/syscall_defs.h	2013-11-05 22:23:25.923408847 +0000
++++ qemu-1.6.0+dfsg/linux-user/syscall_defs.h	2013-11-05 22:23:25.911408877 +0000
+@@ -1822,7 +1822,7 @@
+ 
+   	abi_long	__unused[3];
+ };
+-#elif defined(TARGET_S390X) || defined(TARGET_ARM64)
++#elif defined(TARGET_S390X)
+ struct target_stat {
+     abi_ulong  st_dev;
+     abi_ulong  st_ino;
+@@ -1843,6 +1843,28 @@
+     abi_long       st_blocks;
+     abi_ulong  __unused[3];
+ };
++#elif defined(TARGET_ARM64)
++struct target_stat {
++    abi_ulong  st_dev;
++    abi_ulong  st_ino;
++    unsigned int st_mode;
++    unsigned int st_nlink;
++    unsigned int   st_uid;
++    unsigned int   st_gid;
++    abi_ulong  st_rdev;
++    abi_ulong  _pad1;
++    abi_long  st_size;
++    int        st_blksize;
++    int        __pad2;
++    abi_long   st_blocks;
++    abi_long  target_st_atime;
++    abi_ulong  target_st_atime_nsec;
++    abi_long  target_st_mtime;
++    abi_ulong  target_st_mtime_nsec;
++    abi_long  target_st_ctime;
++    abi_ulong  target_st_ctime_nsec;
++    unsigned int __unused[2];
++};
+ #elif defined(TARGET_OPENRISC)
+ 
+ /* These are the asm-generic versions of the stat and stat64 structures */
+@@ -1951,7 +1973,8 @@
+ 	uint32_t	f_spare[6];
+ };
+ #elif (defined(TARGET_PPC64) || defined(TARGET_X86_64) || \
+-       defined(TARGET_SPARC64)) && !defined(TARGET_ABI32)
++       defined(TARGET_SPARC64) || defined(TARGET_ARM64)) && \
++       !defined(TARGET_ABI32)
+ struct target_statfs {
+ 	abi_long f_type;
+ 	abi_long f_bsize;
+@@ -1979,8 +2002,7 @@
+ 	abi_long f_frsize;
+ 	abi_long f_spare[5];
+ };
+-// XXX verify that this is correct
+-#elif defined(TARGET_S390X) || defined(TARGET_ARM64)
++#elif defined(TARGET_S390X)
+ struct target_statfs {
+     int32_t  f_type;
+     int32_t  f_bsize;
+Index: qemu-1.6.0+dfsg/target-arm/cpu.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/cpu.c	2013-11-05 22:23:25.923408847 +0000
++++ qemu-1.6.0+dfsg/target-arm/cpu.c	2013-11-05 22:23:25.911408877 +0000
+@@ -29,8 +29,10 @@
+ {
+     ARMCPU *cpu = ARM_CPU(cs);
+ 
+-    cpu->env.regs[15] = value;
+-    cpu->env.pc = value;
++    if (is_a64(&cpu->env))
++      cpu->env.pc = value;
++    else
++      cpu->env.regs[15] = value;
+ }
+ 
+ static void cp_reg_reset(gpointer key, gpointer value, gpointer opaque)
+Index: qemu-1.6.0+dfsg/target-arm/cpu.h
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/cpu.h	2013-11-05 22:23:25.923408847 +0000
++++ qemu-1.6.0+dfsg/target-arm/cpu.h	2013-11-05 22:23:25.911408877 +0000
+@@ -874,7 +874,7 @@
+ #include "exec/exec-all.h"
+ 
+ /* Load an instruction and return it in the standard little-endian order */
+-static inline uint32_t arm_ldl_code(CPUARMState *env, uint32_t addr,
++static inline uint32_t arm_ldl_code(CPUARMState *env, target_ulong addr,
+                                     bool do_swap)
+ {
+     uint32_t insn = cpu_ldl_code(env, addr);
+@@ -885,7 +885,7 @@
+ }
+ 
+ /* Ditto, for a halfword (Thumb) instruction */
+-static inline uint16_t arm_lduw_code(CPUARMState *env, uint32_t addr,
++static inline uint16_t arm_lduw_code(CPUARMState *env, target_ulong addr,
+                                      bool do_swap)
+ {
+     uint16_t insn = cpu_lduw_code(env, addr);
+Index: qemu-1.6.0+dfsg/target-arm/helper.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/helper.c	2013-11-05 22:23:25.923408847 +0000
++++ qemu-1.6.0+dfsg/target-arm/helper.c	2013-11-05 22:23:25.911408877 +0000
+@@ -4244,6 +4244,15 @@
+     return num / den;
+ }
+ 
++int64_t HELPER(sdiv64)(int64_t num, int64_t den)
++{
++    if (den == 0)
++      return 0;
++    if (num == LLONG_MIN && den == -1)
++      return LLONG_MIN;
++    return num / den;
++}
++
+ uint64_t HELPER(umulh)(uint64_t n, uint64_t m)
+ {
+     uint64_t rl, rh;
+Index: qemu-1.6.0+dfsg/target-arm/helper.h
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/helper.h	2013-11-05 22:23:25.923408847 +0000
++++ qemu-1.6.0+dfsg/target-arm/helper.h	2013-11-05 22:23:25.911408877 +0000
+@@ -468,6 +468,7 @@
+ DEF_HELPER_FLAGS_4(cinc, TCG_CALL_NO_RWG_SE, i64, i32, i32, i64, i64)
+ DEF_HELPER_FLAGS_3(sign_extend, TCG_CALL_NO_RWG_SE, i64, i64, i64, i64)
+ DEF_HELPER_FLAGS_2(udiv64, TCG_CALL_NO_RWG_SE, i64, i64, i64)
++DEF_HELPER_FLAGS_2(sdiv64, TCG_CALL_NO_RWG_SE, s64, s64, s64)
+ DEF_HELPER_FLAGS_2(umulh, TCG_CALL_NO_RWG_SE, i64, i64, i64)
+ DEF_HELPER_FLAGS_2(smulh, TCG_CALL_NO_RWG_SE, i64, i64, i64)
+ DEF_HELPER_1(tb_flush, void, env)
+Index: qemu-1.6.0+dfsg/target-arm/translate-a64.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/translate-a64.c	2013-11-05 22:23:25.923408847 +0000
++++ qemu-1.6.0+dfsg/target-arm/translate-a64.c	2013-11-05 22:23:25.911408877 +0000
+@@ -35,8 +35,8 @@
+ #define GEN_HELPER 1
+ #include "helper.h"
+ 
+-#define DEBUG_SINGLESTEP 1
+-#define DEBUG_FLUSH 1
++// #define DEBUG_SINGLESTEP 1
++// #define DEBUG_FLUSH 1
+ 
+ static TCGv_i64 cpu_X[32];
+ static TCGv_i64 cpu_pc;
+@@ -604,7 +604,7 @@
+             tcg_gen_mov_i64(cpu_reg_sp(dest), cpu_reg(rm));
+         }
+         if (is_n) {
+-            tcg_gen_neg_i64(cpu_reg_sp(dest), cpu_reg_sp(dest));
++            tcg_gen_not_i64(cpu_reg_sp(dest), cpu_reg_sp(dest));
+         }
+         return;
+     }
+@@ -725,8 +725,7 @@
+     tcg_dst = cpu_reg(dest);
+     if (extend) {
+         extend_type = get_bits(insn, 13, 3);
+-        shift_amount &= 0x7;
+-        if (shift_amount > 4) {
++        if ((shift_amount & 0x7) > 4) {
+             /* reserved value */
+             unallocated_encoding(s);
+         }
+@@ -739,11 +738,10 @@
+             /* reserved value */
+             unallocated_encoding(s);
+         }
+-    }
+-
+-    if (is_32bit && (shift_amount < 0)) {
+-        /* reserved value */
+-        unallocated_encoding(s);
++        if (is_32bit && (shift_amount < 0)) {
++            /* reserved value */
++            unallocated_encoding(s);
++        }
+     }
+ 
+     if (extend) {
+@@ -1014,7 +1012,7 @@
+                             bool is_reg_offset, int offset, int size)
+ {
+     int option = get_bits(offset, 1, 3);
+-    bool is_shift = get_bits(offset, 0, 1) && (option == 3);
++    bool is_shift = get_bits(offset, 0, 1);
+     int shift = size;
+     int rn = get_bits(offset, 4, 5);
+     TCGv_i64 tcg_offset;
+@@ -1173,6 +1171,34 @@
+     tcg_temp_free_i64(tcg_shifted);
+ }
+ 
++static void handle_rev(DisasContext *s, uint32_t insn)
++{
++    int rd = get_reg(insn);
++    int rn = get_bits(insn, 5, 5);
++    int opc = get_bits(insn, 10, 2);
++    bool is_32bit = !get_bits(insn, 31, 1);
++
++    switch (opc) {
++    case 0x0: /* RBIT */
++        /* XXX */
++        unallocated_encoding(s);
++        break;
++    case 0x1: /* REV16 */
++        tcg_gen_bswap16_i64(cpu_reg(rd), cpu_reg(rn));
++        break;
++    case 0x2: /* REV32 */
++        tcg_gen_bswap32_i64(cpu_reg(rd), cpu_reg(rn));
++        break;
++    case 0x3: /* REV64 */
++        tcg_gen_bswap64_i64(cpu_reg(rd), cpu_reg(rn));
++        break;
++    }
++
++    if (is_32bit) {
++        tcg_gen_ext32u_i64(cpu_reg(rd), cpu_reg(rd));
++    }
++}
++
+ static void handle_mulh(DisasContext *s, uint32_t insn)
+ {
+     int rd = get_reg(insn);
+@@ -1194,23 +1220,65 @@
+     int rm = get_bits(insn, 16, 5);
+     bool is_signed = get_bits(insn, 10, 1);
+     bool is_32bit = !get_bits(insn, 31, 1);
++    TCGv_i64 n = tcg_temp_new_i64();
++    TCGv_i64 m = tcg_temp_new_i64();
++
++    if (is_32bit) {
++        if (is_signed) {
++            tcg_gen_ext32s_i64(n, cpu_reg(rn));
++            tcg_gen_ext32s_i64(m, cpu_reg(rm));
++        } else {
++            tcg_gen_ext32u_i64(n, cpu_reg(rn));
++            tcg_gen_ext32u_i64(m, cpu_reg(rm));
++        }
++    } else {
++        tcg_gen_mov_i64(n, cpu_reg(rn));
++        tcg_gen_mov_i64(m, cpu_reg(rm));
++    }
+ 
+     if (is_signed) {
+-        unallocated_encoding(s);
+-        return;
++        gen_helper_sdiv64(cpu_reg(rd), n, m);
++    } else {
++        gen_helper_udiv64(cpu_reg(rd), n, m);
+     }
+ 
+     if (is_32bit) {
+-        unallocated_encoding(s);
+-        return;
++        if (is_signed) {
++            tcg_gen_ext32s_i64(cpu_reg(rd), cpu_reg(rd));
++        } else {
++            tcg_gen_ext32u_i64(cpu_reg(rd), cpu_reg(rd));
++        }
+     }
+ 
+-    gen_helper_udiv64(cpu_reg(rd), cpu_reg(rn), cpu_reg(rm));
++    tcg_temp_free_i64(n);
++    tcg_temp_free_i64(m);
+ }
+ 
+ static void handle_extr(DisasContext *s, uint32_t insn)
+ {
+-    unallocated_encoding(s);
++    int rd = get_reg(insn);
++    int rn = get_bits(insn, 5, 5);
++    int imms = get_bits(insn, 10, 6);
++    int rm = get_bits(insn, 16, 5);
++    bool is_32bit = !get_bits(insn, 31, 1);
++    int bitsize = is_32bit ? 32 : 64;
++    TCGv_i64 tcg_res = tcg_temp_new_i64();
++    TCGv_i64 tcg_tmp = tcg_temp_new_i64();
++
++    if (is_32bit) {
++        tcg_gen_ext32u_i64(tcg_tmp, cpu_reg(rm));
++    } else {
++        tcg_gen_mov_i64(tcg_tmp, cpu_reg(rm));
++    }
++    tcg_gen_shri_i64(tcg_res, cpu_reg(rm), imms);
++    tcg_gen_shli_i64(tcg_tmp, cpu_reg(rn), bitsize - imms);
++    tcg_gen_or_i64(cpu_reg(rd), tcg_tmp, tcg_res);
++    if (is_32bit) {
++        tcg_gen_ext32u_i64(cpu_reg(rd), cpu_reg(rd));
++    }
++
++    tcg_temp_free_i64(tcg_tmp);
++    tcg_temp_free_i64(tcg_res);
+ }
+ 
+ /* Verified against test case -agraf */
+@@ -1368,7 +1436,6 @@
+     bool is_high = op_id & 0x4;
+     TCGv_i64 tcg_op1;
+     TCGv_i64 tcg_op2;
+-    TCGv_i64 tcg_op3;
+     TCGv_i64 tcg_tmp;
+ 
+     switch (op_id) {
+@@ -1394,25 +1461,22 @@
+ 
+     tcg_op1 = tcg_temp_new_i64();
+     tcg_op2 = tcg_temp_new_i64();
+-    tcg_op3 = tcg_temp_new_i64();
+     tcg_tmp = tcg_temp_new_i64();
+ 
+     if (is_signed) {
+-        tcg_gen_ext32u_i64(tcg_op1, cpu_reg(rn));
+-        tcg_gen_ext32u_i64(tcg_op2, cpu_reg(rm));
+-        tcg_gen_ext32u_i64(tcg_op3, cpu_reg(ra));
+-    } else {
+         tcg_gen_ext32s_i64(tcg_op1, cpu_reg(rn));
+         tcg_gen_ext32s_i64(tcg_op2, cpu_reg(rm));
+-        tcg_gen_ext32s_i64(tcg_op3, cpu_reg(ra));
++    } else {
++        tcg_gen_ext32u_i64(tcg_op1, cpu_reg(rn));
++        tcg_gen_ext32u_i64(tcg_op2, cpu_reg(rm));
+     }
+ 
+     tcg_gen_mul_i64(tcg_tmp, tcg_op1, tcg_op2);
+ 
+     if (is_sub) {
+-        tcg_gen_sub_i64(cpu_reg(rd), tcg_op3, tcg_tmp);
++        tcg_gen_sub_i64(cpu_reg(rd), cpu_reg(ra), tcg_tmp);
+     } else {
+-        tcg_gen_add_i64(cpu_reg(rd), tcg_op3, tcg_tmp);
++        tcg_gen_add_i64(cpu_reg(rd), cpu_reg(ra), tcg_tmp);
+     }
+ 
+     if (is_32bit) {
+@@ -1421,10 +1485,85 @@
+ 
+     tcg_temp_free_i64(tcg_op1);
+     tcg_temp_free_i64(tcg_op2);
+-    tcg_temp_free_i64(tcg_op3);
+     tcg_temp_free_i64(tcg_tmp);
+ }
+ 
++/* fixed <-> floating conversion */
++static void handle_fpfpconv(DisasContext *s, uint32_t insn)
++{
++#if 0
++    int rd = get_reg(insn);
++    int rn = get_bits(insn, 5, 5);
++    int scale = get_bits(insn, 10, 6);
++    int opcode = get_bits(insn, 16, 3);
++    int rmode = get_bits(insn, 20, 2);
++    int type = get_bits(insn, 22, 2);
++    bool is_s = get_bits(insn, 29, 1);
++    bool is_32bit = !get_bits(insn, 31, 1);
++#endif
++
++    unallocated_encoding(s);
++}
++
++/* floating <-> integer conversion */
++static void handle_fpintconv(DisasContext *s, uint32_t insn)
++{
++    int rd = get_reg(insn);
++    int rn = get_bits(insn, 5, 5);
++    int opcode = get_bits(insn, 16, 3);
++    int rmode = get_bits(insn, 19, 2);
++    int type = get_bits(insn, 22, 2);
++    bool is_s = get_bits(insn, 29, 1);
++    bool is_32bit = !get_bits(insn, 31, 1);
++
++    if (!is_s && (rmode < 2) && (opcode > 5)) {
++        /* FMOV */
++        bool itof = opcode & 1;
++        int dest = itof ? rd : rn;
++        int freg_offs = offsetof(CPUARMState, fregs[0]) + dest * 2;
++
++        if (rmode & 1) {
++            /* XXX upper Q part */
++        }
++
++        switch (type |
++                ((rmode & 1) ? 0x4 : 0) |
++                (itof ? 0x8 : 0)) {
++        case 0x0:
++            tcg_gen_ld32u_i64(cpu_reg(rd), cpu_env, freg_offs + sizeof(float32));
++            break;
++        case 0x1:
++            tcg_gen_ld_i64(cpu_reg(rd), cpu_env, freg_offs);
++            break;
++        case 0x2:
++            tcg_gen_ld_i64(cpu_reg(rd), cpu_env, freg_offs);
++            break;
++        case 0x4:
++            tcg_gen_ld_i64(cpu_reg(rd), cpu_env, freg_offs + sizeof(float64));
++            break;
++        case 0x8:
++            tcg_gen_st32_i64(cpu_reg(rn), cpu_env, freg_offs + sizeof(float32));
++            break;
++        case 0x9:
++            tcg_gen_st_i64(cpu_reg(rn), cpu_env, freg_offs);
++            break;
++        case 0xa:
++            tcg_gen_st_i64(cpu_reg(rn), cpu_env, freg_offs);
++            break;
++        case 0xc:
++            tcg_gen_st_i64(cpu_reg(rn), cpu_env, freg_offs + sizeof(float64));
++            break;
++        }
++
++        if (is_32bit && !itof) {
++            tcg_gen_ext32u_i64(cpu_reg(rd), cpu_reg(rd));
++        }
++    } else {
++        /* XXX */
++        unallocated_encoding(s);
++    }
++}
++
+ void disas_a64_insn(CPUARMState *env, DisasContext *s)
+ {
+     uint32_t insn;
+@@ -1489,7 +1628,8 @@
+         }
+         break;
+     case 0x13:
+-        if (get_bits(insn, 23, 1)) {
++        if (get_bits(insn, 23, 1) && !get_bits(insn, 21, 1) &&
++            !get_bits(insn, 29, 2)) {
+             handle_extr(s, insn);
+         } else {
+             handle_bfm(s, insn);
+@@ -1513,20 +1653,22 @@
+         if (get_bits(insn, 29, 2) == 0x1) {
+             handle_cb(s, insn);
+             break;
+-        }
+-        if (get_bits(insn, 20, 12) == 0xd53) {
++        } else if (get_bits(insn, 20, 12) == 0xd53) {
+             handle_mrs(s, insn);
+             break;
+-        }
+-        if (get_bits(insn, 20, 12) == 0xd51) {
++        } else if (get_bits(insn, 20, 12) == 0xd51) {
+             handle_msr(s, insn);
+             break;
+-        }
+-        if ((insn & 0xfffff09f) == 0xd503309f) {
++        } else if ((insn & 0xfffff01f) == 0xd503201f) {
++            /* HINT instructions */
++            break;
++        } else if ((insn & 0xfffff09f) == 0xd503309f) {
+             /* barrier instructions */
+             break;
++        } else {
++            goto unknown_insn;
+         }
+-        goto unknown_insn;
++        break;
+     case 0x16:
+     case 0x17:
+         if (get_bits(insn, 29, 2) == 0x1) {
+@@ -1551,6 +1693,8 @@
+             handle_udiv(s, insn);
+         } else if ((insn & 0x7fe0f000) == 0x1ac02000) {
+             handle_lslv(s, insn);
++        } else if ((insn & 0x7ffff000) == 0x5ac00000) {
++            handle_rev(s, insn);
+         } else {
+             goto unknown_insn;
+         }
+@@ -1558,6 +1702,16 @@
+     case 0x1b:
+         handle_dp3s(s, insn);
+         break;
++    case 0x1e:
++        if (!get_bits(insn, 21, 1) && !get_bits(insn, 30, 1)) {
++            handle_fpfpconv(s, insn);
++        } else if (get_bits(insn, 21, 1) && !get_bits(insn, 30, 1) &&
++                   !get_bits(insn, 10, 6)) {
++            handle_fpintconv(s, insn);
++        } else {
++            goto unknown_insn;
++        }
++        break;
+     default:
+ unknown_insn:
+         printf("unknown insn: %08x\n", insn);
+Index: qemu-1.6.0+dfsg/target-arm/translate.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/translate.c	2013-11-05 22:23:25.923408847 +0000
++++ qemu-1.6.0+dfsg/target-arm/translate.c	2013-11-05 22:23:25.919408857 +0000
+@@ -10012,6 +10012,7 @@
+         store_cpu_field(tmp, condexec_bits);
+       }
+     do {
++        if (!is_a64(env)) {
+ #ifdef CONFIG_USER_ONLY
+         /* Intercept jump to the magic kernel page.  */
+         if (dc->pc >= 0xffff0000) {
+@@ -10030,6 +10031,7 @@
+             break;
+         }
+ #endif
++        }
+ 
+         if (unlikely(!QTAILQ_EMPTY(&env->breakpoints))) {
+             QTAILQ_FOREACH(bp, &env->breakpoints, entry) {

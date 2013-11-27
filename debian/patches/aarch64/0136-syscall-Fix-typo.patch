@@ -1,0 +1,24 @@
+From 900af4eec8ad92365973fc587f850b60073af2d0 Mon Sep 17 00:00:00 2001
+From: Michael Matz <matz@suse.de>
+Date: Mon, 1 Apr 2013 04:38:26 +0200
+Subject: [PATCH 136/169] syscall: Fix typo
+
+Obviously we want to unlock what we locked, not something
+unrelated.
+---
+ linux-user/syscall.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+Index: qemu-1.6.0+dfsg/linux-user/syscall.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/linux-user/syscall.c	2013-11-05 22:23:43.787362604 +0000
++++ qemu-1.6.0+dfsg/linux-user/syscall.c	2013-11-05 22:23:43.779362623 +0000
+@@ -4630,7 +4630,7 @@
+                 return -TARGET_EFAULT;
+ 	    target_foex->type = tswap32(foex.type);
+ 	    target_foex->pid = tswap32(foex.type);
+-            unlock_user_struct(target_fl64, arg, 1);
++            unlock_user_struct(target_foex, arg, 1);
+         }
+ 	break;
+ 

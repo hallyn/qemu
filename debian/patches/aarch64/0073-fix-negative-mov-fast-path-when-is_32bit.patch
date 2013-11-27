@@ -1,0 +1,23 @@
+From f81a5046c36f26b4ef7bc8df0b449761309a7e4d Mon Sep 17 00:00:00 2001
+From: Alexander Graf <agraf@suse.de>
+Date: Thu, 21 Feb 2013 01:08:32 +0100
+Subject: [PATCH 073/169] fix negative mov fast path when is_32bit
+
+---
+ target-arm/translate-a64.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+Index: qemu-1.6.0+dfsg/target-arm/translate-a64.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/translate-a64.c	2013-11-05 22:23:31.219395137 +0000
++++ qemu-1.6.0+dfsg/target-arm/translate-a64.c	2013-11-05 22:23:31.215395147 +0000
+@@ -646,6 +646,9 @@
+         if (is_n) {
+             tcg_gen_not_i64(cpu_reg_sp(dest), cpu_reg_sp(dest));
+         }
++        if (is_32bit) {
++            tcg_gen_ext32u_i64(cpu_reg_sp(dest), cpu_reg_sp(dest));
++        }
+         return;
+     }
+ 

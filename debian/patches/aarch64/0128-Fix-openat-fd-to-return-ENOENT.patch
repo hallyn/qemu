@@ -1,0 +1,25 @@
+From fafc86b0638a40bb48a74e89bf340669eb8910f1 Mon Sep 17 00:00:00 2001
+From: Michael Matz <matz@suse.de>
+Date: Sun, 31 Mar 2013 00:28:10 +0100
+Subject: [PATCH 128/169] Fix openat(fd, "") to return ENOENT
+
+Entries with null name don't exist, but the openat append a prefix
+mechanism made it look like they do (they openened the directory).
+---
+ linux-user/syscall.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+Index: qemu-1.6.0+dfsg/linux-user/syscall.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/linux-user/syscall.c	2013-11-05 22:23:42.147366848 +0000
++++ qemu-1.6.0+dfsg/linux-user/syscall.c	2013-11-05 22:23:42.143366859 +0000
+@@ -5220,6 +5220,9 @@
+     if (dirfd == AT_FDCWD || (path && path[0] == '/')) {
+         return 1;
+     }
++    /* Don't resolve the empty entry to the directory itself.  */
++    if (!path || !path[0])
++      return -1;
+ 
+     at_len = resolved_path_len - 1 - 1 - (path ? strlen(path) : 0);
+     sprintf(resolved_path, "/proc/self/fd/%i", dirfd);

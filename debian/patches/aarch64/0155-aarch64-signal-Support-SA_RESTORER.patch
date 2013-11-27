@@ -1,0 +1,44 @@
+From d14708473337f8e2ac65b62eacc47d2bb2328714 Mon Sep 17 00:00:00 2001
+From: Michael Matz <matz@suse.de>
+Date: Fri, 12 Apr 2013 16:40:36 +0200
+Subject: [PATCH 155/169] aarch64, signal: Support SA_RESTORER
+
+---
+ linux-user/signal.c | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)
+
+Index: qemu-1.6.0+dfsg/linux-user/signal.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/linux-user/signal.c	2013-11-05 22:23:47.639352633 +0000
++++ qemu-1.6.0+dfsg/linux-user/signal.c	2013-11-05 22:23:47.635352643 +0000
+@@ -1286,6 +1286,7 @@
+ {
+     struct target_rt_sigframe *frame;
+     abi_ulong frame_addr;
++    abi_ulong returnaddr;
+     int err = 0;
+ 
+     frame_addr = get_sigframe(ka, env);
+@@ -1304,14 +1305,19 @@
+                       &frame->uc.tuc_stack.ss_size);
+     err |= target_setup_sigframe(frame, env, set);
+     /* mov x8,#__NR_rt_sigreturn; svc #0 */
+-    err |= __put_user(0xd2801168, &frame->tramp[0]);
+-    err |= __put_user(0xd4000001, &frame->tramp[1]);
++    if (ka->sa_flags & TARGET_SA_RESTORER) {
++	returnaddr = ka->sa_restorer;
++    } else {
++	err |= __put_user(0xd2801168, &frame->tramp[0]);
++	err |= __put_user(0xd4000001, &frame->tramp[1]);
++	returnaddr = frame_addr + offsetof(struct target_rt_sigframe, tramp);
++    }
+     if (err == 0) {
+ 	env->xregs[0] = usig;
+ 	env->sp = frame_addr;
+ 	env->xregs[29] = env->sp + offsetof(struct target_rt_sigframe, fp);
+ 	env->pc = ka->_sa_handler;
+-	env->xregs[30] = env->sp + offsetof(struct target_rt_sigframe, tramp);
++	env->xregs[30] = returnaddr;
+ 	if (info) {
+ 	    err |= copy_siginfo_to_user(&frame->info, info);
+ 	    env->xregs[1] = frame_addr + offsetof(struct target_rt_sigframe, info);

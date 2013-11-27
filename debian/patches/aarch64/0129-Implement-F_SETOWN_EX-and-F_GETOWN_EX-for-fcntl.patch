@@ -1,0 +1,111 @@
+From 422c90116363de8914e3a0abb0e0560634b57c00 Mon Sep 17 00:00:00 2001
+From: Michael Matz <matz@suse.de>
+Date: Sun, 31 Mar 2013 00:29:24 +0100
+Subject: [PATCH 129/169] Implement F_SETOWN_EX and F_GETOWN_EX for fcntl
+
+This is required by newer glibc when they assume new kernels
+(it maps F_GETOWN to F_GETOWN_EX and disables fallback code).
+---
+ linux-user/strace.c       |  8 ++++++++
+ linux-user/syscall.c      | 28 ++++++++++++++++++++++++++++
+ linux-user/syscall_defs.h |  8 ++++++++
+ 3 files changed, 44 insertions(+)
+
+Index: qemu-1.6.0+dfsg/linux-user/strace.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/linux-user/strace.c	2013-11-05 22:23:42.347366331 +0000
++++ qemu-1.6.0+dfsg/linux-user/strace.c	2013-11-05 22:23:42.339366352 +0000
+@@ -893,6 +893,14 @@
+         gemu_log("F_SETOWN,");
+         print_raw_param(TARGET_ABI_FMT_ld, arg2, 0);
+         break;
++    case TARGET_F_GETOWN_EX:
++        gemu_log("F_GETOWN_EX,");
++        print_pointer(arg2, 1);
++        break;
++    case TARGET_F_SETOWN_EX:
++        gemu_log("F_SETOWN_EX,");
++        print_pointer(arg2, 1);
++        break;
+     case TARGET_F_GETSIG:
+         gemu_log("F_GETSIG");
+         break;
+Index: qemu-1.6.0+dfsg/linux-user/syscall.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/linux-user/syscall.c	2013-11-05 22:23:42.347366331 +0000
++++ qemu-1.6.0+dfsg/linux-user/syscall.c	2013-11-05 22:23:42.343366342 +0000
+@@ -4464,6 +4464,10 @@
+ 	    return F_GETSIG;
+ 	case TARGET_F_SETSIG:
+ 	    return F_SETSIG;
++	case TARGET_F_GETOWN_EX:
++	    return F_GETOWN_EX;
++	case TARGET_F_SETOWN_EX:
++	    return F_SETOWN_EX;
+ #if TARGET_ABI_BITS == 32
+         case TARGET_F_GETLK64:
+ 	    return F_GETLK64;
+@@ -4504,6 +4508,8 @@
+     struct target_flock *target_fl;
+     struct flock64 fl64;
+     struct target_flock64 *target_fl64;
++    struct target_f_owner_ex *target_foex;
++    struct f_owner_ex foex;
+     abi_long ret;
+     int host_cmd = target_to_host_fcntl_cmd(cmd);
+ 
+@@ -4606,6 +4612,28 @@
+         ret = get_errno(fcntl(fd, host_cmd, arg));
+         break;
+ 
++    case TARGET_F_SETOWN_EX:
++        if (!lock_user_struct(VERIFY_READ, target_foex, arg, 1))
++            return -TARGET_EFAULT;
++	/* XXX Assumes that types are the same for all hosts/targets.
++	   Currently true.  */
++	foex.type = tswap32(target_foex->type);
++	foex.pid = tswap32(target_foex->pid);
++        unlock_user_struct(target_foex, arg, 0);
++        ret = get_errno(fcntl(fd, host_cmd, &foex));
++	break;
++
++    case TARGET_F_GETOWN_EX:
++        ret = get_errno(fcntl(fd, host_cmd, &foex));
++        if (ret == 0) {
++            if (!lock_user_struct(VERIFY_WRITE, target_foex, arg, 0))
++                return -TARGET_EFAULT;
++	    target_foex->type = tswap32(foex.type);
++	    target_foex->pid = tswap32(foex.type);
++            unlock_user_struct(target_fl64, arg, 1);
++        }
++	break;
++
+     default:
+         ret = get_errno(fcntl(fd, cmd, arg));
+         break;
+Index: qemu-1.6.0+dfsg/linux-user/syscall_defs.h
+===================================================================
+--- qemu-1.6.0+dfsg.orig/linux-user/syscall_defs.h	2013-11-05 22:23:42.347366331 +0000
++++ qemu-1.6.0+dfsg/linux-user/syscall_defs.h	2013-11-05 22:23:42.343366342 +0000
+@@ -2124,6 +2124,9 @@
+ #define TARGET_F_SETLKW64      14
+ #endif
+ 
++#define TARGET_F_SETOWN_EX     15
++#define TARGET_F_GETOWN_EX     16
++
+ #define TARGET_F_LINUX_SPECIFIC_BASE 1024
+ #define TARGET_F_SETLEASE (TARGET_F_LINUX_SPECIFIC_BASE + 0)
+ #define TARGET_F_GETLEASE (TARGET_F_LINUX_SPECIFIC_BASE + 1)
+@@ -2280,6 +2283,11 @@
+ } QEMU_PACKED;
+ #endif
+ 
++struct target_f_owner_ex {
++	int type;
++	pid_t pid;
++};
++
+ /* soundcard defines */
+ /* XXX: convert them all to arch indepedent entries */
+ #define TARGET_SNDCTL_COPR_HALT           TARGET_IOWR('C',  7, int);

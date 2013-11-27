@@ -1,0 +1,81 @@
+From 46be5bb8f1d4a8b0559782374d912e6912b1ba27 Mon Sep 17 00:00:00 2001
+From: Alexander Graf <agraf@suse.de>
+Date: Tue, 14 Apr 2009 16:20:50 +0200
+Subject: [PATCH 004/169] qemu-cvs-alsa_bitfield
+
+Implements TYPE_INTBITFIELD partially. (required for ALSA support)
+
+Signed-off-by: Alexander Graf <agraf@suse.de>
+Signed-off-by: Ulrich Hecht <uli@suse.de>
+---
+ include/exec/user/thunk.h |  3 +++
+ thunk.c                   | 21 +++++++++++++++++++++
+ 2 files changed, 24 insertions(+)
+
+Index: qemu-1.6.0+dfsg/include/exec/user/thunk.h
+===================================================================
+--- qemu-1.6.0+dfsg.orig/include/exec/user/thunk.h	2013-11-05 22:23:16.395433516 +0000
++++ qemu-1.6.0+dfsg/include/exec/user/thunk.h	2013-11-05 22:23:16.391433527 +0000
+@@ -38,6 +38,7 @@
+     TYPE_ARRAY,
+     TYPE_STRUCT,
+     TYPE_OLDDEVT,
++    TYPE_INTBITFIELD,
+ } argtype;
+ 
+ #define MK_PTR(type) TYPE_PTR, type
+@@ -91,6 +92,7 @@
+     case TYPE_SHORT:
+         return 2;
+     case TYPE_INT:
++    case TYPE_INTBITFIELD:
+         return 4;
+     case TYPE_LONGLONG:
+     case TYPE_ULONGLONG:
+@@ -153,6 +155,7 @@
+     case TYPE_SHORT:
+         return 2;
+     case TYPE_INT:
++    case TYPE_INTBITFIELD:
+         return 4;
+     case TYPE_LONGLONG:
+     case TYPE_ULONGLONG:
+Index: qemu-1.6.0+dfsg/thunk.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/thunk.c	2013-11-05 22:23:16.395433516 +0000
++++ qemu-1.6.0+dfsg/thunk.c	2013-11-05 22:23:16.391433527 +0000
+@@ -41,6 +41,7 @@
+     case TYPE_CHAR:
+     case TYPE_SHORT:
+     case TYPE_INT:
++    case TYPE_INTBITFIELD:
+     case TYPE_LONGLONG:
+     case TYPE_ULONGLONG:
+     case TYPE_LONG:
+@@ -140,6 +141,26 @@
+     case TYPE_INT:
+         *(uint32_t *)dst = tswap32(*(uint32_t *)src);
+         break;
++    case TYPE_INTBITFIELD:
++#if defined(TARGET_I386) && defined(__powerpc__)
++        /* powerpc uses the MSB, whereas i386 uses the LSB
++         * to store the first bit in a field */
++        {
++	    unsigned char byte = *(uint8_t *)src;
++            *(uint8_t *)dst  = ((byte >> 7) & 1)
++		             | ((byte >> 5) & 2)
++			     | ((byte >> 3) & 4)
++			     | ((byte >> 1) & 8)
++			     | ((byte << 1) & 16)
++			     | ((byte << 3) & 32)
++			     | ((byte << 5) & 64)
++			     | ((byte << 7) & 128);
++	    /* FIXME: implement for bitfields > 1 byte and other archs */
++        }
++#else
++        *(uint32_t *)dst = tswap32(*(uint32_t *)src);
++#endif
++	break;
+     case TYPE_LONGLONG:
+     case TYPE_ULONGLONG:
+         *(uint64_t *)dst = tswap64(*(uint64_t *)src);

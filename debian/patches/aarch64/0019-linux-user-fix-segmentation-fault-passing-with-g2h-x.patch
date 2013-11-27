@@ -1,0 +1,42 @@
+From 323fab0e015c899b2315286efa73ab3078c20737 Mon Sep 17 00:00:00 2001
+From: Alexander Graf <agraf@suse.de>
+Date: Mon, 25 Jun 2012 19:02:32 +0200
+Subject: [PATCH 019/169] linux-user: fix segmentation fault passing with
+ g2h(x) != x
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+When forwarding a segmentation fault into the guest process, we were passing
+the host's address directly into the guest process's signal descriptor.
+
+That obviously confused the guest process, since it didn't know what to make
+of the (usually 32-bit truncated) address. Passing in g2h(address) makes the
+guest process a lot happier.
+
+This fixes java running in arm-linux-user for me.
+
+Signed-off-by: Alexander Graf <agraf@suse.de>
+[AF: Rebased onto AREG0 fix for v1.2, squashed fixup by agraf]
+Signed-off-by: Andreas Färber <afaerber@suse.de>
+---
+ user-exec.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+Index: qemu-1.6.0+dfsg/user-exec.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/user-exec.c	2013-11-05 22:23:19.507425455 +0000
++++ qemu-1.6.0+dfsg/user-exec.c	2013-11-05 22:23:19.503425468 +0000
+@@ -104,6 +104,12 @@
+     address = h2g_nocheck(address);
+ 
+     env = current_cpu->env_ptr;
++    if (RESERVED_VA) {
++        /* Convert forcefully to guest address space, invalid addresses
++           are still valid segv ones */
++        address = address - GUEST_BASE;
++    }
++
+     /* see if it is an MMU fault */
+     ret = cpu_handle_mmu_fault(env, address, is_write, MMU_USER_IDX);
+     if (ret < 0) {

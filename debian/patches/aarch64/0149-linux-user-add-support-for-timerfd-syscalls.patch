@@ -1,0 +1,112 @@
+From ead5444eb7c304b69156c83afb658977113c8a72 Mon Sep 17 00:00:00 2001
+From: Andreas Schwab <schwab@suse.de>
+Date: Thu, 28 Mar 2013 16:19:48 +0100
+Subject: [PATCH 149/169] linux-user: add support for timerfd syscalls
+
+Signed-off-by: Andreas Schwab <schwab@suse.de>
+---
+ configure            | 19 +++++++++++++++++++
+ linux-user/syscall.c | 46 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 65 insertions(+)
+
+Index: qemu-1.6.0+dfsg/configure
+===================================================================
+--- qemu-1.6.0+dfsg.orig/configure	2013-11-05 22:23:46.439355740 +0000
++++ qemu-1.6.0+dfsg/configure	2013-11-05 22:23:46.427355770 +0000
+@@ -2770,6 +2770,22 @@
+   signalfd=yes
+ fi
+ 
++# check if timerfd API is supported
++timerfd="no"
++cat > $TMPC << EOF
++#include <sys/timerfd.h>
++int main(void)
++{
++    timerfd_create(CLOCK_REALTIME, TFD_CLOEXEC);
++    timerfd_settime(-1, 0, NULL, NULL);
++    return timerfd_gettime (-1, NULL);
++}
++EOF
++
++if compile_prog "" "" ; then
++  timerfd=yes
++fi
++
+ # check for fallocate
+ fallocate=no
+ cat > $TMPC << EOF
+@@ -3844,6 +3860,9 @@
+ if test "$signalfd" = "yes" ; then
+   echo "CONFIG_SIGNALFD=y" >> $config_host_mak
+ fi
++if test "$timerfd" = "yes" ; then
++  echo "CONFIG_TIMERFD=y" >> $config_host_mak
++fi
+ if test "$fallocate" = "yes" ; then
+   echo "CONFIG_FALLOCATE=y" >> $config_host_mak
+ fi
+Index: qemu-1.6.0+dfsg/linux-user/syscall.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/linux-user/syscall.c	2013-11-05 22:23:46.439355740 +0000
++++ qemu-1.6.0+dfsg/linux-user/syscall.c	2013-11-05 22:23:46.435355750 +0000
+@@ -75,6 +75,9 @@
+ #ifdef CONFIG_SIGNALFD
+ #include <sys/signalfd.h>
+ #endif
++#ifdef CONFIG_TIMERFD
++#include <sys/timerfd.h>
++#endif
+ #ifdef CONFIG_EPOLL
+ #include <sys/epoll.h>
+ #endif
+@@ -9119,6 +9122,49 @@
+         break;
+ #endif
+ #endif /* CONFIG_SIGNALFD */
++#if defined(CONFIG_TIMERFD)
++#if defined(TARGET_NR_timerfd_create)
++    case TARGET_NR_timerfd_create:
++        ret = get_errno(timerfd_create(arg1, target_to_host_bitmask(arg2, fcntl_flags_tbl)));
++        break;
++#endif
++#if defined(TARGET_NR_timerfd_settime)
++    case TARGET_NR_timerfd_settime:
++    {
++        struct itimerspec value, ovalue, *pvalue;
++        if (arg3) {
++            pvalue = &value;
++            ret = target_to_host_timespec(&pvalue->it_interval, arg3);
++            if (!ret)
++                ret = target_to_host_timespec(&pvalue->it_value, arg3 + sizeof(struct target_timespec));
++            if (ret)
++                break;
++        } else {
++            pvalue = NULL;
++        }
++        ret = get_errno(timerfd_settime(arg1, arg2, pvalue, arg4 ? &ovalue : NULL));
++        if (!is_error(ret) && arg4) {
++            ret = host_to_target_timespec(arg3, &ovalue.it_interval);
++            if (!ret)
++                ret = host_to_target_timespec(arg3 + sizeof(struct target_timespec), &ovalue.it_value);
++        }
++        break;
++    }
++#endif
++#if defined(TARGET_NR_timerfd_gettime)
++    case TARGET_NR_timerfd_gettime:
++    {
++        struct itimerspec ovalue;
++        ret = get_errno(timerfd_gettime(arg1, &ovalue));
++        if (!is_error(ret) && arg4) {
++            ret = host_to_target_timespec(arg2, &ovalue.it_interval);
++            if (!ret)
++                ret = host_to_target_timespec(arg2 + sizeof(struct target_timespec), &ovalue.it_value);
++        }
++        break;
++    }
++#endif
++#endif /* CONFIG_TIMERFD */
+ #if defined(CONFIG_FALLOCATE) && defined(TARGET_NR_fallocate)
+     case TARGET_NR_fallocate:
+ #if TARGET_ABI_BITS == 32

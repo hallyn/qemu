@@ -1,0 +1,29 @@
+From 8316b249dd50423902ebea7fba4feee0f5358b8b Mon Sep 17 00:00:00 2001
+From: Alexander Graf <agraf@suse.de>
+Date: Sun, 11 Dec 2011 01:19:24 +0100
+Subject: [PATCH 012/169] linux-user: Ignore timer_create syscall
+
+We don't implement the timer_create syscall, but shouting out loud
+about it breaks some %check tests in OBS, so better ignore it silently.
+
+Signed-off-by: Alexander Graf <agraf@suse.de>
+---
+ linux-user/syscall.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+Index: qemu-1.6.0+dfsg/linux-user/syscall.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/linux-user/syscall.c	2013-11-05 22:23:18.103429092 +0000
++++ qemu-1.6.0+dfsg/linux-user/syscall.c	2013-11-05 22:23:18.103429092 +0000
+@@ -8690,6 +8690,11 @@
+         break;
+ #endif
+ 
++#if defined(TARGET_NR_timer_create)
++    case TARGET_NR_timer_create:
++	goto unimplemented_nowarn;
++#endif
++
+ #if defined(TARGET_NR_tkill) && defined(__NR_tkill)
+     case TARGET_NR_tkill:
+         ret = get_errno(sys_tkill((int)arg1, target_to_host_signal(arg2)));

@@ -1,0 +1,41 @@
+From 40dc633ceca20a3c79ccb1890dfd299acbe9b7c4 Mon Sep 17 00:00:00 2001
+From: Michael Matz <matz@suse.de>
+Date: Sat, 23 Mar 2013 06:17:14 +0100
+Subject: [PATCH 114/169] Implement mrs dczid_el0
+
+This fakes a dczid_el0 register readable so that glibc is
+working.  It checks bit 4 of that value and if set doesn't use
+the dc zva instruction to clear memory (which we don't implement).
+---
+ target-arm/translate-a64.c | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+Index: qemu-1.6.0+dfsg/target-arm/translate-a64.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/translate-a64.c	2013-11-05 22:23:39.379374013 +0000
++++ qemu-1.6.0+dfsg/target-arm/translate-a64.c	2013-11-05 22:23:39.375374024 +0000
+@@ -398,6 +398,11 @@
+         /* CTR_EL0 [3:0] contains log2 of icache line size in words.
+            CTR_EL0 [19:16] contains log2 of dcache line size in words.  */
+         tcg_gen_movi_i64(cpu_reg(dest), 0x30003);
++    } else if (op0 == 3 && op1 == 3 && op2 == 7 && crm == 0 && crn == 0) {
++	/* dczid_el0 */
++	/* [3:0] contain log2(blocksize cleared by "dc zva" instruction)
++	   [4] is tested by glibc, and if set dc zva isn't used. */
++	tcg_gen_movi_i64(cpu_reg(dest), 0x10);
+     } else {
+         fprintf(stderr, "MRS: %d %d %d %d %d\n", op0, op1, op2, crm, crn);
+         unallocated_encoding(s);
+@@ -408,6 +413,12 @@
+ {
+     /* XXX simply ignore sys for now, need to start worrying when we implement
+            system emulation */
++    /* XXX Some sys insns can also be done in userspace, e.g. 'dc zva',
++       which clears memory (part of the data-cache sys ops).  */
++    if ((insn & ~0xf) == 0xd50b7420) {
++	unallocated_encoding(s);
++	return;
++    }
+ }
+ 
+ /* PC relative address calculation */

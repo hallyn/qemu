@@ -1,0 +1,35 @@
+From 564e811479849f40955989079bce1ed026d267a7 Mon Sep 17 00:00:00 2001
+From: Michael Matz <matz@suse.de>
+Date: Wed, 20 Mar 2013 17:05:12 +0100
+Subject: [PATCH 108/169] Fix 128bit ldr (literal)
+
+We were only loading 32bit when using the 128-bit ldr (literal)
+format (opc=2, is_vector=1).
+---
+ target-arm/translate-a64.c | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)
+
+Index: qemu-1.6.0+dfsg/target-arm/translate-a64.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/translate-a64.c	2013-11-05 22:23:38.167377151 +0000
++++ qemu-1.6.0+dfsg/target-arm/translate-a64.c	2013-11-05 22:23:38.159377171 +0000
+@@ -1160,10 +1160,17 @@
+         size = 3;
+         break;
+     case 2:
+-        is_signed = true;
+-        size = 2;
++	if (!is_vector) {
++	    is_signed = true;
++	    size = 2;
++	} else
++	  size = 4;
+         break;
+     case 3:
++	if (is_vector) {
++	    unallocated_encoding(s);
++	    return;
++	}
+         /* prefetch */
+         goto out;
+     }

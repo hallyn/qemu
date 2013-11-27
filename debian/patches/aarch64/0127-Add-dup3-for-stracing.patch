@@ -1,0 +1,23 @@
+From 53292aaaa42ecd5dfdbe39461cca34ceaec038b4 Mon Sep 17 00:00:00 2001
+From: Michael Matz <matz@suse.de>
+Date: Sun, 31 Mar 2013 00:25:43 +0100
+Subject: [PATCH 127/169] Add dup3 for stracing
+
+---
+ linux-user/strace.list | 3 +++
+ 1 file changed, 3 insertions(+)
+
+Index: qemu-1.6.0+dfsg/linux-user/strace.list
+===================================================================
+--- qemu-1.6.0+dfsg.orig/linux-user/strace.list	2013-11-05 22:23:41.955367346 +0000
++++ qemu-1.6.0+dfsg/linux-user/strace.list	2013-11-05 22:23:41.955367346 +0000
+@@ -111,6 +111,9 @@
+ #ifdef TARGET_NR_dup2
+ { TARGET_NR_dup2, "dup2" , NULL, NULL, NULL },
+ #endif
++#ifdef TARGET_NR_dup3
++{ TARGET_NR_dup3, "dup3" , NULL, NULL, NULL },
++#endif
+ #ifdef TARGET_NR_epoll_create
+ { TARGET_NR_epoll_create, "epoll_create" , NULL, NULL, NULL },
+ #endif

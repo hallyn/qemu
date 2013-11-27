@@ -1,0 +1,107 @@
+From 88c0bab7d5b93ff7f133d93bbf4fc6d46fc3bb90 Mon Sep 17 00:00:00 2001
+From: Alexander Graf <agraf@suse.de>
+Date: Fri, 15 Feb 2013 20:48:56 +0100
+Subject: [PATCH 058/169] FP: clear target vector before writing into it
+
+---
+ target-arm/translate-a64.c | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)
+
+Index: qemu-1.6.0+dfsg/target-arm/translate-a64.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/translate-a64.c	2013-11-05 22:23:28.207402933 +0000
++++ qemu-1.6.0+dfsg/target-arm/translate-a64.c	2013-11-05 22:23:28.199402955 +0000
+@@ -143,6 +143,15 @@
+     return statusptr;
+ }
+ 
++static void clear_fpreg(int dest)
++{
++    int freg_offs = offsetof(CPUARMState, vfp.regs[dest * 2]);
++    TCGv_i64 tcg_zero = tcg_const_i64(0);
++
++    tcg_gen_st_i64(tcg_zero, cpu_env, freg_offs);
++    tcg_gen_st_i64(tcg_zero, cpu_env, freg_offs + sizeof(float64));
++}
++
+ static int get_mem_index(DisasContext *s)
+ {
+     /* XXX only user mode for now */
+@@ -821,6 +830,7 @@
+             break;
+         }
+     } else {
++        clear_fpreg(dest);
+         switch (size) {
+         case 0:
+             tcg_gen_qemu_ld8u(tcg_tmp, tcg_addr, get_mem_index(s));
+@@ -1573,6 +1583,10 @@
+     }
+     freg_offs = offsetof(CPUARMState, vfp.regs[fp_reg * 2]);
+ 
++    if (!direction) {
++        clear_fpreg(fp_reg);
++    }
++
+     if (is_32bit) {
+         /* XXX handle is_32bit case when doing scalar->single) */
+     }
+@@ -1699,6 +1713,10 @@
+             freg_offs += sizeof(float64);
+         }
+ 
++        if (itof) {
++            clear_fpreg(dest);
++        }
++
+         switch (type |
+                 ((rmode & 1) ? 0x4 : 0) |
+                 (itof ? 0x8 : 0)) {
+@@ -1832,6 +1850,7 @@
+         return;
+     }
+ 
++    clear_fpreg(rd);
+     tcg_gen_st_i64(tcg_res, cpu_env, freg_offs_d);
+ 
+     tcg_temp_free_ptr(fpst);
+@@ -1870,6 +1889,7 @@
+         return;
+     }
+ 
++    clear_fpreg(rd);
+     tcg_gen_ext32u_i64(tcg_tmp, tcg_res);
+     tcg_gen_st32_i64(tcg_tmp, cpu_env, freg_offs_d);
+ 
+@@ -1919,6 +1939,7 @@
+         return;
+     }
+ 
++    clear_fpreg(rd);
+     tcg_gen_st_i64(tcg_res, cpu_env, freg_offs_d);
+ 
+     tcg_temp_free_ptr(fpst);
+@@ -1970,6 +1991,7 @@
+         return;
+     }
+ 
++    clear_fpreg(rd);
+     tcg_gen_ext32u_i64(tcg_tmp, tcg_res);
+     tcg_gen_st32_i64(tcg_tmp, cpu_env, freg_offs_d);
+ 
+@@ -2012,6 +2034,7 @@
+         return;
+     }
+ 
++    clear_fpreg(rd);
+     tcg_gen_st_i64(tcg_res, cpu_env, freg_offs_d);
+ 
+     tcg_temp_free_ptr(fpst);
+@@ -2057,6 +2080,7 @@
+         return;
+     }
+ 
++    clear_fpreg(rd);
+     tcg_gen_ext32u_i64(tcg_tmp, tcg_res);
+     tcg_gen_st32_i64(tcg_tmp, cpu_env, freg_offs_d);
+ 

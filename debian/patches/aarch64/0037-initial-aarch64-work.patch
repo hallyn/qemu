@@ -1,0 +1,1325 @@
+From fc89c95d1dd106a9c5c46e740f4ff73cb0dccdb8 Mon Sep 17 00:00:00 2001
+From: Alexander Graf <agraf@suse.de>
+Date: Fri, 9 Aug 2013 16:30:09 +0200
+Subject: [PATCH 037/169] initial aarch64 work
+
+---
+ configure                            |  14 ++
+ default-configs/arm64-linux-user.mak |   3 +
+ disas.c                              |   6 +-
+ disas/Makefile.objs                  |   1 +
+ disas/aarch64-dis.c                  |  33 ++++
+ include/disas/bfd.h                  |   1 +
+ include/elf.h                        |   2 +
+ linux-user/Makefile.objs             |   1 +
+ linux-user/arm/syscall.h             |  32 ++++
+ linux-user/arm/syscall_nr.h          | 326 +++++++++++++++++++++++++++++++++
+ linux-user/elfload.c                 |  16 +-
+ linux-user/main.c                    |  25 +++
+ linux-user/syscall.c                 |   2 +-
+ linux-user/syscall_defs.h            |  10 +-
+ target-arm/Makefile.objs             |   1 +
+ target-arm/cpu.c                     |   1 +
+ target-arm/cpu.h                     |  42 ++++-
+ target-arm/translate-a64.c           | 336 +++++++++++++++++++++++++++++++++++
+ target-arm/translate.c               |  42 ++---
+ target-arm/translate.h               |  35 ++++
+ 20 files changed, 889 insertions(+), 40 deletions(-)
+ create mode 100644 default-configs/arm64-linux-user.mak
+ create mode 100644 disas/aarch64-dis.c
+ create mode 100644 target-arm/translate-a64.c
+ create mode 100644 target-arm/translate.h
+
+Index: qemu-1.6.0+dfsg/configure
+===================================================================
+--- qemu-1.6.0+dfsg.orig/configure	2013-11-05 22:23:23.107416137 +0000
++++ qemu-1.6.0+dfsg/configure	2013-11-05 22:23:23.095416168 +0000
+@@ -4259,6 +4259,16 @@
+     bflt="yes"
+     gdb_xml_files="arm-core.xml arm-vfp.xml arm-vfp3.xml arm-neon.xml"
+   ;;
++  arm64)
++    TARGET_BASE_ARCH=arm
++    TARGET_ABI_DIR=arm
++    bflt="yes"
++    target_nptl="yes"
++    gdb_xml_files="arm-core.xml arm-vfp.xml arm-vfp3.xml arm-neon.xml"
++    #gdb_xml_files="power64-core.xml power-fpu.xml power-altivec.xml power-spe.xml"
++    target_long_alignment=8
++    target_libs_softmmu="$fdt_libs"
++  ;;
+   cris)
+   ;;
+   lm32)
+@@ -4431,6 +4441,10 @@
+     echo "CONFIG_ARM_DIS=y"  >> $config_target_mak
+     echo "CONFIG_ARM_DIS=y"  >> config-all-disas.mak
+   ;;
++  arm64)
++    echo "CONFIG_ARM64_DIS=y"  >> $config_target_mak
++    echo "CONFIG_ARM64_DIS=y"  >> config-all-disas.mak
++  ;;
+   cris)
+     echo "CONFIG_CRIS_DIS=y"  >> $config_target_mak
+     echo "CONFIG_CRIS_DIS=y"  >> config-all-disas.mak
+Index: qemu-1.6.0+dfsg/default-configs/arm64-linux-user.mak
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ qemu-1.6.0+dfsg/default-configs/arm64-linux-user.mak	2013-11-05 22:23:23.095416168 +0000
+@@ -0,0 +1,3 @@
++# Default configuration for arm-linux-user
++
++CONFIG_GDBSTUB_XML=y
+Index: qemu-1.6.0+dfsg/disas.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/disas.c	2013-11-05 22:23:23.107416137 +0000
++++ qemu-1.6.0+dfsg/disas.c	2013-11-05 22:23:23.095416168 +0000
+@@ -150,7 +150,7 @@
+   return (bfd_vma) v;
+ }
+ 
+-#ifdef TARGET_ARM
++#if defined(TARGET_ARM) && !defined(TARGET_ARM64)
+ static int
+ print_insn_thumb1(bfd_vma pc, disassemble_info *info)
+ {
+@@ -195,6 +195,8 @@
+         s.info.mach = bfd_mach_i386_i386;
+     }
+     print_insn = print_insn_i386;
++#elif defined(TARGET_ARM64)
++    print_insn = print_insn_aarch64;
+ #elif defined(TARGET_ARM)
+     if (flags & 1) {
+         print_insn = print_insn_thumb1;
+@@ -437,6 +439,8 @@
+         s.info.mach = bfd_mach_i386_i386;
+     }
+     print_insn = print_insn_i386;
++#elif defined(TARGET_ARM64)
++    print_insn = print_insn_aarch64;
+ #elif defined(TARGET_ARM)
+     print_insn = print_insn_arm;
+ #elif defined(TARGET_ALPHA)
+Index: qemu-1.6.0+dfsg/disas/Makefile.objs
+===================================================================
+--- qemu-1.6.0+dfsg.orig/disas/Makefile.objs	2013-11-05 22:23:23.107416137 +0000
++++ qemu-1.6.0+dfsg/disas/Makefile.objs	2013-11-05 22:23:23.095416168 +0000
+@@ -13,6 +13,7 @@
+ common-obj-$(CONFIG_SH4_DIS) += sh4.o
+ common-obj-$(CONFIG_SPARC_DIS) += sparc.o
+ common-obj-$(CONFIG_LM32_DIS) += lm32.o
++common-obj-$(CONFIG_ARM_DIS) += aarch64-dis.o
+ 
+ # TODO: As long as the TCG interpreter and its generated code depend
+ # on the QEMU target, we cannot compile the disassembler here.
+Index: qemu-1.6.0+dfsg/disas/aarch64-dis.c
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ qemu-1.6.0+dfsg/disas/aarch64-dis.c	2013-11-05 22:23:23.095416168 +0000
+@@ -0,0 +1,33 @@
++#include "disas/bfd.h"
++
++#define INSNLEN 4
++
++/* Stub disassembler for aarch64.  */
++
++int
++print_insn_aarch64 (bfd_vma pc,
++		    struct disassemble_info *info)
++{
++  bfd_byte	buffer[INSNLEN];
++  int		status;
++  unsigned int	size = 4;
++  uint32_t	data;
++
++  /* Aarch64 instructions are always little-endian */
++  info->endian = BFD_ENDIAN_LITTLE;
++  info->bytes_per_chunk = size = INSNLEN;
++  info->display_endian = info->endian;
++
++  status = (*info->read_memory_func) (pc, buffer, size, info);
++  if (status != 0)
++    {
++      (*info->memory_error_func) (status, pc, info);
++      return -1;
++    }
++
++  data = ldl_p(buffer);
++
++  (*info->fprintf_func) (info->stream,"\t[0x%08x] (%02x)\t.unknown", data, (data >> 24) & 0x1f);
++
++  return size;
++}
+Index: qemu-1.6.0+dfsg/include/disas/bfd.h
+===================================================================
+--- qemu-1.6.0+dfsg.orig/include/disas/bfd.h	2013-11-05 22:23:23.107416137 +0000
++++ qemu-1.6.0+dfsg/include/disas/bfd.h	2013-11-05 22:23:23.095416168 +0000
+@@ -409,6 +409,7 @@
+ int print_insn_microblaze       (bfd_vma, disassemble_info*);
+ int print_insn_ia64             (bfd_vma, disassemble_info*);
+ int print_insn_lm32             (bfd_vma, disassemble_info*);
++int print_insn_aarch64          (bfd_vma, disassemble_info*);
+ 
+ #if 0
+ /* Fetch the disassembler for a given BFD, if that support is available.  */
+Index: qemu-1.6.0+dfsg/include/elf.h
+===================================================================
+--- qemu-1.6.0+dfsg.orig/include/elf.h	2013-11-05 22:23:23.107416137 +0000
++++ qemu-1.6.0+dfsg/include/elf.h	2013-11-05 22:23:23.095416168 +0000
+@@ -109,6 +109,8 @@
+ #define EM_OPENRISC     92        /* OpenCores OpenRISC */
+ 
+ #define EM_UNICORE32    110     /* UniCore32 */
++#define EM_AARCH64      183     /* ARM 64-bit architecture */
++
+ 
+ /*
+  * This is an interim value that we will use until the committee comes
+Index: qemu-1.6.0+dfsg/linux-user/Makefile.objs
+===================================================================
+--- qemu-1.6.0+dfsg.orig/linux-user/Makefile.objs	2013-11-05 22:23:23.107416137 +0000
++++ qemu-1.6.0+dfsg/linux-user/Makefile.objs	2013-11-05 22:23:23.095416168 +0000
+@@ -4,6 +4,7 @@
+ obj-$(TARGET_HAS_BFLT) += flatload.o
+ obj-$(TARGET_I386) += vm86.o
+ obj-$(TARGET_ARM) += arm/nwfpe/
++obj-$(TARGET_ARM64) += arm/nwfpe/
+ obj-$(TARGET_M68K) += m68k-sim.o
+ 
+ obj-binfmt-y = binfmt.o
+Index: qemu-1.6.0+dfsg/linux-user/arm/syscall.h
+===================================================================
+--- qemu-1.6.0+dfsg.orig/linux-user/arm/syscall.h	2013-11-05 22:23:23.107416137 +0000
++++ qemu-1.6.0+dfsg/linux-user/arm/syscall.h	2013-11-05 22:23:23.095416168 +0000
+@@ -1,4 +1,34 @@
+ 
++#ifdef TARGET_ARM64
++
++struct target_pt_regs {
++    uint64_t        regs[31];
++    uint64_t        sp;
++    uint64_t        pc;
++    uint64_t        pstate;
++};
++
++#define ARM_cpsr	uregs[16]
++#define ARM_pc		uregs[15]
++#define ARM_lr		uregs[14]
++#define ARM_sp		uregs[13]
++#define ARM_ip		uregs[12]
++#define ARM_fp		uregs[11]
++#define ARM_r10		uregs[10]
++#define ARM_r9		uregs[9]
++#define ARM_r8		uregs[8]
++#define ARM_r7		uregs[7]
++#define ARM_r6		uregs[6]
++#define ARM_r5		uregs[5]
++#define ARM_r4		uregs[4]
++#define ARM_r3		uregs[3]
++#define ARM_r2		uregs[2]
++#define ARM_r1		uregs[1]
++#define ARM_r0		uregs[0]
++#define ARM_ORIG_r0	uregs[17]
++
++#else
++
+ /* this struct defines the way the registers are stored on the
+    stack during a system call. */
+ 
+@@ -25,6 +55,8 @@
+ #define ARM_r0		uregs[0]
+ #define ARM_ORIG_r0	uregs[17]
+ 
++#endif
++
+ #define ARM_SYSCALL_BASE	0x900000
+ #define ARM_THUMB_SYSCALL	0
+ 
+Index: qemu-1.6.0+dfsg/linux-user/arm/syscall_nr.h
+===================================================================
+--- qemu-1.6.0+dfsg.orig/linux-user/arm/syscall_nr.h	2013-11-05 22:23:23.107416137 +0000
++++ qemu-1.6.0+dfsg/linux-user/arm/syscall_nr.h	2013-11-05 22:23:23.095416168 +0000
+@@ -2,6 +2,8 @@
+  * This file contains the system call numbers.
+  */
+ 
++#ifndef TARGET_ARM64
++
+ #define TARGET_NR_restart_syscall		(  0)
+ #define TARGET_NR_exit			(  1)
+ #define TARGET_NR_fork			(  2)
+@@ -378,3 +380,327 @@
+ #define TARGET_NR_open_by_handle_at            (371)
+ #define TARGET_NR_clock_adjtime                (372)
+ #define TARGET_NR_syncfs                       (373)
++
++#else /* !TARGET_ARM64 */
++
++#define TARGET_NR_io_setup 0
++#define TARGET_NR_io_destroy 1
++#define TARGET_NR_io_submit 2
++#define TARGET_NR_io_cancel 3
++#define TARGET_NR_io_getevents 4
++#define TARGET_NR_setxattr 5
++#define TARGET_NR_lsetxattr 6
++#define TARGET_NR_fsetxattr 7
++#define TARGET_NR_getxattr 8
++#define TARGET_NR_lgetxattr 9
++#define TARGET_NR_fgetxattr 10
++#define TARGET_NR_listxattr 11
++#define TARGET_NR_llistxattr 12
++#define TARGET_NR_flistxattr 13
++#define TARGET_NR_removexattr 14
++#define TARGET_NR_lremovexattr 15
++#define TARGET_NR_fremovexattr 16
++#define TARGET_NR_getcwd 17
++#define TARGET_NR_lookup_dcookie 18
++#define TARGET_NR_eventfd2 19
++#define TARGET_NR_epoll_create1 20
++#define TARGET_NR_epoll_ctl 21
++#define TARGET_NR_epoll_pwait 22
++#define TARGET_NR_dup 23
++#define TARGET_NR_dup3 24
++#define TARGET_NR3264_fcntl 25
++#define TARGET_NR_inotify_init1 26
++#define TARGET_NR_inotify_add_watch 27
++#define TARGET_NR_inotify_rm_watch 28
++#define TARGET_NR_ioctl 29
++#define TARGET_NR_ioprio_set 30
++#define TARGET_NR_ioprio_get 31
++#define TARGET_NR_flock 32
++#define TARGET_NR_mknodat 33
++#define TARGET_NR_mkdirat 34
++#define TARGET_NR_unlinkat 35
++#define TARGET_NR_symlinkat 36
++#define TARGET_NR_linkat 37
++#define TARGET_NR_renameat 38
++#define TARGET_NR_umount2 39
++#define TARGET_NR_mount 40
++#define TARGET_NR_pivot_root 41
++#define TARGET_NR_nfsservctl 42
++#define TARGET_NR3264_statfs 43
++#define TARGET_NR3264_fstatfs 44
++#define TARGET_NR3264_truncate 45
++#define TARGET_NR3264_ftruncate 46
++#define TARGET_NR_fallocate 47
++#define TARGET_NR_faccessat 48
++#define TARGET_NR_chdir 49
++#define TARGET_NR_fchdir 50
++#define TARGET_NR_chroot 51
++#define TARGET_NR_fchmod 52
++#define TARGET_NR_fchmodat 53
++#define TARGET_NR_fchownat 54
++#define TARGET_NR_fchown 55
++#define TARGET_NR_openat 56
++#define TARGET_NR_close 57
++#define TARGET_NR_vhangup 58
++#define TARGET_NR_pipe2 59
++#define TARGET_NR_quotactl 60
++#define TARGET_NR_getdents64 61
++#define TARGET_NR3264_lseek 62
++#define TARGET_NR_read 63
++#define TARGET_NR_write 64
++#define TARGET_NR_readv 65
++#define TARGET_NR_writev 66
++#define TARGET_NR_pread64 67
++#define TARGET_NR_pwrite64 68
++#define TARGET_NR_preadv 69
++#define TARGET_NR_pwritev 70
++#define TARGET_NR3264_sendfile 71
++#define TARGET_NR_pselect6 72
++#define TARGET_NR_ppoll 73
++#define TARGET_NR_signalfd4 74
++#define TARGET_NR_vmsplice 75
++#define TARGET_NR_splice 76
++#define TARGET_NR_tee 77
++#define TARGET_NR_readlinkat 78
++#define TARGET_NR3264_fstatat 79
++#define TARGET_NR3264_fstat 80
++#define TARGET_NR_sync 81
++#define TARGET_NR_fsync 82
++#define TARGET_NR_fdatasync 83
++#define TARGET_NR_sync_file_range2 84
++//#define TARGET_NR_sync_file_range 84
++#define TARGET_NR_timerfd_create 85
++#define TARGET_NR_timerfd_settime 86
++#define TARGET_NR_timerfd_gettime 87
++#define TARGET_NR_utimensat 88
++#define TARGET_NR_acct 89
++#define TARGET_NR_capget 90
++#define TARGET_NR_capset 91
++#define TARGET_NR_personality 92
++#define TARGET_NR_exit 93
++#define TARGET_NR_exit_group 94
++#define TARGET_NR_waitid 95
++#define TARGET_NR_set_tid_address 96
++#define TARGET_NR_unshare 97
++#define TARGET_NR_futex 98
++#define TARGET_NR_set_robust_list 99
++#define TARGET_NR_get_robust_list 100
++#define TARGET_NR_nanosleep 101
++#define TARGET_NR_getitimer 102
++#define TARGET_NR_setitimer 103
++#define TARGET_NR_kexec_load 104
++#define TARGET_NR_init_module 105
++#define TARGET_NR_delete_module 106
++#define TARGET_NR_timer_create 107
++#define TARGET_NR_timer_gettime 108
++#define TARGET_NR_timer_getoverrun 109
++#define TARGET_NR_timer_settime 110
++#define TARGET_NR_timer_delete 111
++#define TARGET_NR_clock_settime 112
++#define TARGET_NR_clock_gettime 113
++#define TARGET_NR_clock_getres 114
++#define TARGET_NR_clock_nanosleep 115
++#define TARGET_NR_syslog 116
++#define TARGET_NR_ptrace 117
++#define TARGET_NR_sched_setparam 118
++#define TARGET_NR_sched_setscheduler 119
++#define TARGET_NR_sched_getscheduler 120
++#define TARGET_NR_sched_getparam 121
++#define TARGET_NR_sched_setaffinity 122
++#define TARGET_NR_sched_getaffinity 123
++#define TARGET_NR_sched_yield 124
++#define TARGET_NR_sched_get_priority_max 125
++#define TARGET_NR_sched_get_priority_min 126
++#define TARGET_NR_sched_rr_get_interval 127
++#define TARGET_NR_restart_syscall 128
++#define TARGET_NR_kill 129
++#define TARGET_NR_tkill 130
++#define TARGET_NR_tgkill 131
++#define TARGET_NR_sigaltstack 132
++#define TARGET_NR_rt_sigsuspend 133
++#define TARGET_NR_rt_sigaction 134
++#define TARGET_NR_rt_sigprocmask 135
++#define TARGET_NR_rt_sigpending 136
++#define TARGET_NR_rt_sigtimedwait 137
++#define TARGET_NR_rt_sigqueueinfo 138
++#define TARGET_NR_rt_sigreturn 139
++#define TARGET_NR_setpriority 140
++#define TARGET_NR_getpriority 141
++#define TARGET_NR_reboot 142
++#define TARGET_NR_setregid 143
++#define TARGET_NR_setgid 144
++#define TARGET_NR_setreuid 145
++#define TARGET_NR_setuid 146
++#define TARGET_NR_setresuid 147
++#define TARGET_NR_getresuid 148
++#define TARGET_NR_setresgid 149
++#define TARGET_NR_getresgid 150
++#define TARGET_NR_setfsuid 151
++#define TARGET_NR_setfsgid 152
++#define TARGET_NR_times 153
++#define TARGET_NR_setpgid 154
++#define TARGET_NR_getpgid 155
++#define TARGET_NR_getsid 156
++#define TARGET_NR_setsid 157
++#define TARGET_NR_getgroups 158
++#define TARGET_NR_setgroups 159
++#define TARGET_NR_uname 160
++#define TARGET_NR_sethostname 161
++#define TARGET_NR_setdomainname 162
++#define TARGET_NR_getrlimit 163
++#define TARGET_NR_setrlimit 164
++#define TARGET_NR_getrusage 165
++#define TARGET_NR_umask 166
++#define TARGET_NR_prctl 167
++#define TARGET_NR_getcpu 168
++#define TARGET_NR_gettimeofday 169
++#define TARGET_NR_settimeofday 170
++#define TARGET_NR_adjtimex 171
++#define TARGET_NR_getpid 172
++#define TARGET_NR_getppid 173
++#define TARGET_NR_getuid 174
++#define TARGET_NR_geteuid 175
++#define TARGET_NR_getgid 176
++#define TARGET_NR_getegid 177
++#define TARGET_NR_gettid 178
++#define TARGET_NR_sysinfo 179
++#define TARGET_NR_mq_open 180
++#define TARGET_NR_mq_unlink 181
++#define TARGET_NR_mq_timedsend 182
++#define TARGET_NR_mq_timedreceive 183
++#define TARGET_NR_mq_notify 184
++#define TARGET_NR_mq_getsetattr 185
++#define TARGET_NR_msgget 186
++#define TARGET_NR_msgctl 187
++#define TARGET_NR_msgrcv 188
++#define TARGET_NR_msgsnd 189
++#define TARGET_NR_semget 190
++#define TARGET_NR_semctl 191
++#define TARGET_NR_semtimedop 192
++#define TARGET_NR_semop 193
++#define TARGET_NR_shmget 194
++#define TARGET_NR_shmctl 195
++#define TARGET_NR_shmat 196
++#define TARGET_NR_shmdt 197
++#define TARGET_NR_socket 198
++#define TARGET_NR_socketpair 199
++#define TARGET_NR_bind 200
++#define TARGET_NR_listen 201
++#define TARGET_NR_accept 202
++#define TARGET_NR_connect 203
++#define TARGET_NR_getsockname 204
++#define TARGET_NR_getpeername 205
++#define TARGET_NR_sendto 206
++#define TARGET_NR_recvfrom 207
++#define TARGET_NR_setsockopt 208
++#define TARGET_NR_getsockopt 209
++#define TARGET_NR_shutdown 210
++#define TARGET_NR_sendmsg 211
++#define TARGET_NR_recvmsg 212
++#define TARGET_NR_readahead 213
++#define TARGET_NR_brk 214
++#define TARGET_NR_munmap 215
++#define TARGET_NR_mremap 216
++#define TARGET_NR_add_key 217
++#define TARGET_NR_request_key 218
++#define TARGET_NR_keyctl 219
++#define TARGET_NR_clone 220
++#define TARGET_NR_execve 221
++#define TARGET_NR3264_mmap 222
++#define TARGET_NR3264_fadvise64 223
++#define TARGET_NR_swapon 224
++#define TARGET_NR_swapoff 225
++#define TARGET_NR_mprotect 226
++#define TARGET_NR_msync 227
++#define TARGET_NR_mlock 228
++#define TARGET_NR_munlock 229
++#define TARGET_NR_mlockall 230
++#define TARGET_NR_munlockall 231
++#define TARGET_NR_mincore 232
++#define TARGET_NR_madvise 233
++#define TARGET_NR_remap_file_pages 234
++#define TARGET_NR_mbind 235
++#define TARGET_NR_get_mempolicy 236
++#define TARGET_NR_set_mempolicy 237
++#define TARGET_NR_migrate_pages 238
++#define TARGET_NR_move_pages 239
++#define TARGET_NR_rt_tgsigqueueinfo 240
++#define TARGET_NR_perf_event_open 241
++#define TARGET_NR_accept4 242
++#define TARGET_NR_recvmmsg 243
++#define TARGET_NR_arch_specific_syscall 244
++#define TARGET_NR_wait4 260
++#define TARGET_NR_prlimit64 261
++#define TARGET_NR_fanotify_init 262
++#define TARGET_NR_fanotify_mark 263
++#define TARGET_NR_name_to_handle_at         264
++#define TARGET_NR_open_by_handle_at         265
++#define TARGET_NR_clock_adjtime 266
++#define TARGET_NR_syncfs 267
++#define TARGET_NR_setns 268
++#define TARGET_NR_sendmmsg 269
++#define TARGET_NR_process_vm_readv 270
++#define TARGET_NR_process_vm_writev 271
++#define TARGET_NR_kcmp 272
++#define TARGET_NR_finit_module 273
++#define TARGET_NR_open 1024
++#define TARGET_NR_link 1025
++#define TARGET_NR_unlink 1026
++#define TARGET_NR_mknod 1027
++#define TARGET_NR_chmod 1028
++#define TARGET_NR_chown 1029
++#define TARGET_NR_mkdir 1030
++#define TARGET_NR_rmdir 1031
++#define TARGET_NR_lchown 1032
++#define TARGET_NR_access 1033
++#define TARGET_NR_rename 1034
++#define TARGET_NR_readlink 1035
++#define TARGET_NR_symlink 1036
++#define TARGET_NR_utimes 1037
++#define TARGET_NR3264_stat 1038
++#define TARGET_NR3264_lstat 1039
++#define TARGET_NR_pipe 1040
++#define TARGET_NR_dup2 1041
++#define TARGET_NR_epoll_create 1042
++#define TARGET_NR_inotify_init 1043
++#define TARGET_NR_eventfd 1044
++#define TARGET_NR_signalfd 1045
++#define TARGET_NR_sendfile 1046
++#define TARGET_NR_ftruncate 1047
++#define TARGET_NR_truncate 1048
++#define TARGET_NR_stat 1049
++#define TARGET_NR_lstat 1050
++#define TARGET_NR_fstat 1051
++#define TARGET_NR_fcntl 1052
++#define TARGET_NR_fadvise64 1053
++#define TARGET_NR_newfstatat 1054
++#define TARGET_NR_fstatfs 1055
++#define TARGET_NR_statfs 1056
++#define TARGET_NR_lseek 1057
++#define TARGET_NR_mmap 1058
++#define TARGET_NR_alarm 1059
++#define TARGET_NR_getpgrp 1060
++#define TARGET_NR_pause 1061
++#define TARGET_NR_time 1062
++#define TARGET_NR_utime 1063
++#define TARGET_NR_creat 1064
++#define TARGET_NR_getdents 1065
++#define TARGET_NR_futimesat 1066
++#define TARGET_NR_select 1067
++#define TARGET_NR_poll 1068
++#define TARGET_NR_epoll_wait 1069
++#define TARGET_NR_ustat 1070
++#define TARGET_NR_vfork 1071
++#define TARGET_NR_oldwait4 1072
++#define TARGET_NR_recv 1073
++#define TARGET_NR_send 1074
++#define TARGET_NR_bdflush 1075
++#define TARGET_NR_umount 1076
++#define TARGET_NR_uselib 1077
++#define TARGET_NR__sysctl 1078
++#define TARGET_NR_fork 1079
++#define TARGET_NR_syscalls (__NR_fork+1)
++
++#define TARGET_NR_sigreturn 1999
++
++#endif
+Index: qemu-1.6.0+dfsg/linux-user/elfload.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/linux-user/elfload.c	2013-11-05 22:23:23.107416137 +0000
++++ qemu-1.6.0+dfsg/linux-user/elfload.c	2013-11-05 22:23:23.099416157 +0000
+@@ -269,16 +269,27 @@
+ 
+ #define ELF_START_MMAP 0x80000000
+ 
+-#define elf_check_arch(x) ( (x) == EM_ARM )
++#define elf_check_arch(x) ( (x) == ELF_MACHINE )
+ 
++#define ELF_ARCH        ELF_MACHINE
++
++#ifdef TARGET_ARM64
++#define ELF_CLASS       ELFCLASS64
++#else
+ #define ELF_CLASS       ELFCLASS32
+-#define ELF_ARCH        EM_ARM
++#endif
+ 
+ static inline void init_thread(struct target_pt_regs *regs,
+                                struct image_info *infop)
+ {
+     abi_long stack = infop->start_stack;
+     memset(regs, 0, sizeof(*regs));
++
++#ifdef TARGET_ARM64
++    regs->pc = infop->entry & ~0x3ULL;
++    regs->sp = stack;
++    // XXX initialize properly
++#else
+     regs->ARM_cpsr = 0x10;
+     if (infop->entry & 1)
+         regs->ARM_cpsr |= CPSR_T;
+@@ -292,6 +303,7 @@
+     /* For uClinux PIC binaries.  */
+     /* XXX: Linux does this only on ARM with no MMU (do we care ?) */
+     regs->ARM_r10 = infop->start_data;
++#endif
+ }
+ 
+ #define ELF_NREG    18
+Index: qemu-1.6.0+dfsg/linux-user/main.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/linux-user/main.c	2013-11-05 22:23:23.107416137 +0000
++++ qemu-1.6.0+dfsg/linux-user/main.c	2013-11-05 22:23:23.099416157 +0000
+@@ -661,7 +661,9 @@
+ {
+     CPUState *cs = CPU(arm_env_get_cpu(env));
+     int trapnr;
++#ifndef TARGET_ARM64
+     unsigned int n, insn;
++#endif
+     target_siginfo_t info;
+     uint32_t addr;
+ 
+@@ -744,6 +746,18 @@
+         case EXCP_SWI:
+         case EXCP_BKPT:
+             {
++#ifdef TARGET_ARM64
++                env->regs[0] = do_syscall(env,
++                                          env->xregs[8],
++                                          env->xregs[0],
++                                          env->xregs[1],
++                                          env->xregs[2],
++                                          env->xregs[3],
++                                          env->xregs[4],
++                                          env->xregs[5],
++                                          0, 0);
++#else
++
+                 env->eabi = 1;
+                 /* system call */
+                 if (trapnr == EXCP_BKPT) {
+@@ -821,6 +835,7 @@
+                 } else {
+                     goto error;
+                 }
++#endif
+             }
+             break;
+         case EXCP_INTERRUPT:
+@@ -3887,6 +3902,16 @@
+     cpu_x86_load_seg(env, R_FS, 0);
+     cpu_x86_load_seg(env, R_GS, 0);
+ #endif
++#elif defined(TARGET_ARM64)
++    // XXX
++    {
++        int i;
++        for(i = 0; i < 32; i++) {
++            env->xregs[i] = regs->regs[i];
++        }
++        env->pc = regs->pc;
++        env->xregs[31] = regs->sp;
++    }
+ #elif defined(TARGET_ARM)
+     {
+         int i;
+Index: qemu-1.6.0+dfsg/linux-user/syscall.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/linux-user/syscall.c	2013-11-05 22:23:23.107416137 +0000
++++ qemu-1.6.0+dfsg/linux-user/syscall.c	2013-11-05 22:23:23.099416157 +0000
+@@ -4769,7 +4769,7 @@
+                                              abi_ulong target_addr,
+                                              struct stat *host_st)
+ {
+-#ifdef TARGET_ARM
++#if defined(TARGET_ARM) && defined(TARGET_ABI32)
+     if (((CPUARMState *)cpu_env)->eabi) {
+         struct target_eabi_stat64 *target_st;
+ 
+Index: qemu-1.6.0+dfsg/linux-user/syscall_defs.h
+===================================================================
+--- qemu-1.6.0+dfsg.orig/linux-user/syscall_defs.h	2013-11-05 22:23:23.107416137 +0000
++++ qemu-1.6.0+dfsg/linux-user/syscall_defs.h	2013-11-05 22:23:23.099416157 +0000
+@@ -1144,7 +1144,8 @@
+ #define TARGET_MAP_UNINITIALIZED 0x4000000	/* for anonymous mmap, memory could be uninitialized */
+ #endif
+ 
+-#if (defined(TARGET_I386) && defined(TARGET_ABI32)) || defined(TARGET_ARM) \
++#if (defined(TARGET_I386) && defined(TARGET_ABI32)) \
++    || (defined(TARGET_ARM) && defined(TARGET_ABI32)) \
+     || defined(TARGET_CRIS) || defined(TARGET_UNICORE32)
+ struct target_stat {
+ 	unsigned short st_dev;
+@@ -1206,7 +1207,7 @@
+ 	unsigned long long	st_ino;
+ } QEMU_PACKED;
+ 
+-#ifdef TARGET_ARM
++#if defined(TARGET_ARM)
+ struct target_eabi_stat64 {
+         unsigned long long st_dev;
+         unsigned int    __pad1;
+@@ -1821,7 +1822,7 @@
+ 
+   	abi_long	__unused[3];
+ };
+-#elif defined(TARGET_S390X)
++#elif defined(TARGET_S390X) || defined(TARGET_ARM64)
+ struct target_stat {
+     abi_ulong  st_dev;
+     abi_ulong  st_ino;
+@@ -1978,7 +1979,8 @@
+ 	abi_long f_frsize;
+ 	abi_long f_spare[5];
+ };
+-#elif defined(TARGET_S390X)
++// XXX verify that this is correct
++#elif defined(TARGET_S390X) || defined(TARGET_ARM64)
+ struct target_statfs {
+     int32_t  f_type;
+     int32_t  f_bsize;
+Index: qemu-1.6.0+dfsg/target-arm/Makefile.objs
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/Makefile.objs	2013-11-05 22:23:23.107416137 +0000
++++ qemu-1.6.0+dfsg/target-arm/Makefile.objs	2013-11-05 22:23:23.103416147 +0000
+@@ -5,3 +5,4 @@
+ obj-y += translate.o op_helper.o helper.o cpu.o
+ obj-y += neon_helper.o iwmmxt_helper.o
+ obj-y += gdbstub.o
++obj-y += translate-a64.o
+Index: qemu-1.6.0+dfsg/target-arm/cpu.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/cpu.c	2013-11-05 22:23:23.107416137 +0000
++++ qemu-1.6.0+dfsg/target-arm/cpu.c	2013-11-05 22:23:23.103416147 +0000
+@@ -30,6 +30,7 @@
+     ARMCPU *cpu = ARM_CPU(cs);
+ 
+     cpu->env.regs[15] = value;
++    cpu->env.pc = value;
+ }
+ 
+ static void cp_reg_reset(gpointer key, gpointer value, gpointer opaque)
+Index: qemu-1.6.0+dfsg/target-arm/cpu.h
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/cpu.h	2013-11-05 22:23:23.107416137 +0000
++++ qemu-1.6.0+dfsg/target-arm/cpu.h	2013-11-05 22:23:23.103416147 +0000
+@@ -19,13 +19,20 @@
+ #ifndef CPU_ARM_H
+ #define CPU_ARM_H
+ 
+-#define TARGET_LONG_BITS 32
++#include "config.h"
+ 
+-#define ELF_MACHINE	EM_ARM
++#if defined (TARGET_ARM64)
++  /* AArch64 definitions */
++#  define TARGET_LONG_BITS 64
++  /* XXX EM_AARCH64 */
++#  define ELF_MACHINE	EM_AARCH64
++#else
++#  define TARGET_LONG_BITS 32
++#  define ELF_MACHINE	EM_ARM
++#endif
+ 
+ #define CPUArchState struct CPUARMState
+ 
+-#include "config.h"
+ #include "qemu-common.h"
+ #include "exec/cpu-defs.h"
+ 
+@@ -95,6 +102,9 @@
+ typedef struct CPUARMState {
+     /* Regs for current mode.  */
+     uint32_t regs[16];
++    /* Regs for A64 mode.  */
++    uint64_t xregs[32];
++    uint64_t pc;
+     /* Frequently accessed CPSR bits are stored separately for efficiency.
+        This contains all the other bits.  Use cpsr_{read,write} to access
+        the whole CPSR.  */
+@@ -263,6 +273,15 @@
+ void switch_mode(CPUARMState *, int);
+ uint32_t do_arm_semihosting(CPUARMState *env);
+ 
++static inline bool is_a64(CPUARMState *env)
++{
++#ifdef TARGET_ARM64
++    return true;
++#else
++    return false;
++#endif
++}
++
+ /* you can call this signal handler from your SIGBUS and SIGSEGV
+    signal handlers to inform the virtual CPU of exceptions. non zero
+    is returned if the signal was handled by the virtual CPU.  */
+@@ -733,8 +752,13 @@
+ #define TARGET_PAGE_BITS 10
+ #endif
+ 
+-#define TARGET_PHYS_ADDR_SPACE_BITS 40
+-#define TARGET_VIRT_ADDR_SPACE_BITS 32
++#if defined (TARGET_ARM64)
++#  define TARGET_PHYS_ADDR_SPACE_BITS 64
++#  define TARGET_VIRT_ADDR_SPACE_BITS 64
++#else
++#  define TARGET_PHYS_ADDR_SPACE_BITS 40
++#  define TARGET_VIRT_ADDR_SPACE_BITS 32
++#endif
+ 
+ static inline CPUARMState *cpu_init(const char *cpu_model)
+ {
+@@ -797,9 +821,12 @@
+ static inline void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
+                                         target_ulong *cs_base, int *flags)
+ {
++#ifdef TARGET_ARM64
++    *pc = env->pc;
++    *flags = 0;
++#else
+     int privmode;
+     *pc = env->regs[15];
+-    *cs_base = 0;
+     *flags = (env->thumb << ARM_TBFLAG_THUMB_SHIFT)
+         | (env->vfp.vec_len << ARM_TBFLAG_VECLEN_SHIFT)
+         | (env->vfp.vec_stride << ARM_TBFLAG_VECSTRIDE_SHIFT)
+@@ -816,6 +843,9 @@
+     if (env->vfp.xregs[ARM_VFP_FPEXC] & (1 << 30)) {
+         *flags |= ARM_TBFLAG_VFPEN_MASK;
+     }
++#endif
++
++    *cs_base = 0;
+ }
+ 
+ static inline bool cpu_has_work(CPUState *cpu)
+Index: qemu-1.6.0+dfsg/target-arm/translate-a64.c
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ qemu-1.6.0+dfsg/target-arm/translate-a64.c	2013-11-05 22:23:23.103416147 +0000
+@@ -0,0 +1,336 @@
++/*
++ *  ARM translation
++ *
++ *  Copyright (c) 2003 Fabrice Bellard
++ *  Copyright (c) 2005-2007 CodeSourcery
++ *  Copyright (c) 2007 OpenedHand, Ltd.
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, see <http://www.gnu.org/licenses/>.
++ */
++#include <stdarg.h>
++#include <stdlib.h>
++#include <stdio.h>
++#include <string.h>
++#include <inttypes.h>
++
++#include "cpu.h"
++#include "disas/disas.h"
++#include "tcg-op.h"
++#include "qemu/log.h"
++#include "translate.h"
++
++#include "helper.h"
++#define GEN_HELPER 1
++#include "helper.h"
++
++static TCGv_i64 cpu_X[32];
++static TCGv_i64 cpu_pc;
++
++static const char *regnames[] =
++    { "x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7",
++      "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15",
++      "x16", "x17", "x18", "x19", "x20", "x21", "x22", "x23",
++      "x24", "x25", "x26", "x27", "x28", "x29", "lr", "sp" };
++
++/* initialize TCG globals.  */
++void a64_translate_init(void)
++{
++    int i;
++
++    cpu_pc = tcg_global_mem_new_i64(TCG_AREG0,
++                                    offsetof(CPUARMState, pc),
++                                    "pc");
++    for (i = 0; i < 32; i++) {
++        cpu_X[i] = tcg_global_mem_new_i64(TCG_AREG0,
++                                          offsetof(CPUARMState, xregs[i]),
++                                          regnames[i]);
++    }
++}
++
++void cpu_dump_state_a64(CPUARMState *env, FILE *f, fprintf_function cpu_fprintf,
++                        int flags)
++{
++    int i;
++
++    cpu_fprintf(f, "PC=%016"PRIx64"\n", env->pc);
++    for(i = 0; i < 32; i++) {
++        cpu_fprintf(f, "X%02d=%016"PRIx64, i, env->xregs[i]);
++        if ((i % 4) == 3)
++            cpu_fprintf(f, "\n");
++        else
++            cpu_fprintf(f, " ");
++    }
++    cpu_fprintf(f, "\n");
++}
++
++static int get_bits(uint32_t inst, int start, int len)
++{
++    return (inst >> start) & ((1 << len) - 1);
++}
++
++static int get_sbits(uint32_t inst, int start, int len)
++{
++    int r = get_bits(inst, start, len);
++    if (r & (1 << (len - 1))) {
++        r |= ((1ULL << (32 - len)) - 1) << len;
++    }
++    return r;
++}
++
++static int get_reg(uint32_t inst)
++{
++    return get_bits(inst, 0, 5);
++}
++
++void gen_a64_set_pc_im(uint64_t val)
++{
++    tcg_gen_movi_i64(cpu_pc, val);
++}
++
++static void gen_exception(int excp)
++{
++    TCGv tmp = tcg_temp_new_i32();
++    tcg_gen_movi_i32(tmp, excp);
++    gen_helper_exception(cpu_env, tmp);
++    tcg_temp_free_i32(tmp);
++}
++
++static void gen_exception_insn(DisasContext *s, int offset, int excp)
++{
++    gen_a64_set_pc_im(s->pc - offset);
++    gen_exception(excp);
++    s->is_jmp = DISAS_JUMP;
++}
++
++static void handle_b(CPUARMState *env, DisasContext *s, uint32_t insn)
++{
++    uint64_t addr = s->pc + (get_bits(insn, 0, 26) << 2);
++
++    gen_a64_set_pc_im(addr - 4);
++    s->is_jmp = DISAS_JUMP;
++}
++
++static void handle_bl(CPUARMState *env, DisasContext *s, uint32_t insn)
++{
++    tcg_gen_movi_i64(cpu_X[30], s->pc);
++    handle_b(env, s, insn);
++}
++
++/* PC relative address calculation */
++static void handle_adr(CPUARMState *env, DisasContext *s, uint32_t insn)
++{
++    int reg = get_reg(insn);
++    uint64_t imm;
++
++    imm = get_sbits(insn, 5, 19) << 2;
++    imm |= get_bits(insn, 29, 2);
++
++    if (insn & 0x80000000) {
++        /* ADRP (page based) */
++        tcg_gen_movi_i64(cpu_X[reg], s->pc & ~0xfffULL);
++        imm <<= 12;
++    } else {
++        tcg_gen_movi_i64(cpu_X[reg], s->pc);
++    }
++
++    tcg_gen_addi_i64(cpu_X[reg], cpu_X[reg], imm);
++
++    /*
++      [0..4] = target reg
++      [5..23] = imm high
++      [29..30] = imm low
++    
++      addr = sign_extend([imm high] [imm low])
++      reg = pc + addr
++      if (page)
++          reg &= ~0xfff
++    */
++
++}
++
++static void handle_movi(CPUARMState *env, DisasContext *s, uint32_t insn)
++{
++    int reg = get_reg(insn);
++    uint64_t imm;
++
++    /* XXX reserved bits */
++
++    imm = get_bits(insn, 5, 16);
++    /* XXX multiply logic */
++    /* XXX flavors (movz, mov, ...) */
++
++    tcg_gen_movi_i64(cpu_X[reg], imm);
++}
++
++static void handle_mov(CPUARMState *env, DisasContext *s, uint32_t insn)
++{
++    int dest = get_reg(insn);
++    int source = get_bits(insn, 10, 5);
++
++    /* XXX reserved bits */
++    /* XXX flavors */
++
++    tcg_gen_mov_i64(cpu_X[dest], cpu_X[source]);
++}
++
++static void handle_stp(CPUARMState *env, DisasContext *s, uint32_t insn)
++{
++    int x1 = get_reg(insn);
++    int dest = get_bits(insn, 5, 5);
++    int x2 = get_bits(insn, 10, 5);
++    int offset = get_sbits(insn, 15, 7) << 3;
++    TCGv_i64 tcg_addr;
++
++    /* XXX reserved bits */
++    /* XXX flavors */
++
++    tcg_addr = tcg_temp_new_i64();
++    tcg_gen_addi_i64(tcg_addr, cpu_X[dest], offset);
++    tcg_gen_qemu_st64(tcg_addr, cpu_X[x1], 1);
++    tcg_gen_addi_i64(tcg_addr, tcg_addr, 8);
++    tcg_gen_qemu_st64(tcg_addr, cpu_X[x2], 1);
++    tcg_temp_free_i64(tcg_addr);
++}
++
++static void handle_ldst(CPUARMState *env, DisasContext *s, uint32_t insn)
++{
++    int dest = get_reg(insn);
++    int source = get_bits(insn, 5, 5); /* XXX probably more bits */
++    int index = get_bits(insn, 12, 9);
++    TCGv_i64 tcg_addr;
++    bool is_relative = !((insn >> 24) & 0x1);
++    bool is_store = !(insn & 0x00400000);
++
++    /* XXX reserved bits */
++    /* XXX flavors */
++    /* XXX different bit width */
++
++    if ((insn & 0xbf000000) == 0x18000000) {
++        // XXX find pattern
++        is_store = 0;
++    }
++
++    if ((insn & 0xbf800000) == 0xb9000000) {
++        /* UIMM12 version */
++        index = get_bits(insn, 10, 12);
++    } else {
++        /* SIMM9 version */
++        index = get_sbits(insn, 12, 9);
++    }
++
++    if (is_relative) {
++        int rel = get_bits(insn, 5, 19);
++        tcg_addr = tcg_const_i64((rel << 2) + s->pc - 4);
++    } else {
++        tcg_addr = tcg_temp_new_i64();
++        tcg_gen_mov_i64(tcg_addr, cpu_X[source]);
++    }
++
++    if (index) {
++        tcg_gen_addi_i64(tcg_addr, tcg_addr, index);
++    }
++
++    if (is_store) {
++        tcg_gen_qemu_st64(cpu_X[dest], tcg_addr, 1);
++    } else {
++        tcg_gen_qemu_ld64(cpu_X[dest], tcg_addr, 1);
++    }
++
++    tcg_temp_free_i64(tcg_addr);
++}
++
++static void handle_add(CPUARMState *env, DisasContext *s, uint32_t insn)
++{
++    int dest = get_reg(insn);
++    int source = get_bits(insn, 5, 5);
++    int is_64bit = get_bits(insn, 30, 1);
++    int shift = get_bits(insn, 22, 2);
++    uint64_t imm;
++
++    /* XXX check reserved bits */
++
++    imm = get_bits(insn, 10, 12);
++    switch (shift) {
++    case 0x0:
++        break;
++    case 0x1:
++        imm <<= 12;
++        break;
++    default:
++        tcg_abort();
++    }
++
++    /* XXX check is_64bit */
++    if (is_64bit) {
++    }
++
++    tcg_gen_addi_i64(cpu_X[dest], cpu_X[source], imm);
++}
++
++static void handle_svc(CPUARMState *env, DisasContext *s, uint32_t insn)
++{
++    gen_a64_set_pc_im(s->pc);
++#define DISAS_SWI 5
++    s->is_jmp = DISAS_SWI;
++}
++
++void disas_a64_insn(CPUARMState *env, DisasContext *s)
++{
++    uint32_t insn;
++
++    insn = arm_ldl_code(env, s->pc, s->bswap_code);
++    s->pc += 4;
++
++    printf("insn: %08x\n", insn);
++
++    /* One-off branch instruction layout */
++    switch ((insn & 0xfc000000) >> 26) {
++    case 0x5:
++        handle_b(env, s, insn);
++        return;
++    case 0x25:
++        handle_bl(env, s, insn);
++        return;
++    }
++
++    /* Typical major opcode encoding */
++    switch ((insn >> 24) & 0x1f) {
++    case 0x0a:
++        handle_mov(env, s, insn);
++        break;
++    case 0x09:
++        handle_stp(env, s, insn);
++        break;
++    case 0x10:
++        handle_adr(env, s, insn);
++        break;
++    case 0x11:
++        handle_add(env, s, insn);
++        break;
++    case 0x12:
++        handle_movi(env, s, insn);
++        break;
++    case 0x14:
++        handle_svc(env, s, insn);
++        break;
++    case 0x18:
++    case 0x19:
++        handle_ldst(env, s, insn);
++        break;
++    default:
++        printf("unknown insn: %08x\n", insn);
++        gen_exception_insn(s, 4, EXCP_UDEF);
++        break;
++    }
++}
+Index: qemu-1.6.0+dfsg/target-arm/translate.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/translate.c	2013-11-05 22:23:23.107416137 +0000
++++ qemu-1.6.0+dfsg/target-arm/translate.c	2013-11-05 22:23:23.107416137 +0000
+@@ -46,29 +46,7 @@
+ 
+ #define ARCH(x) do { if (!ENABLE_ARCH_##x) goto illegal_op; } while(0)
+ 
+-/* internal defines */
+-typedef struct DisasContext {
+-    target_ulong pc;
+-    int is_jmp;
+-    /* Nonzero if this instruction has been conditionally skipped.  */
+-    int condjmp;
+-    /* The label that will be jumped to when the instruction is skipped.  */
+-    int condlabel;
+-    /* Thumb-2 conditional execution bits.  */
+-    int condexec_mask;
+-    int condexec_cond;
+-    struct TranslationBlock *tb;
+-    int singlestep_enabled;
+-    int thumb;
+-    int bswap_code;
+-#if !defined(CONFIG_USER_ONLY)
+-    int user;
+-#endif
+-    int vfp_enabled;
+-    int vec_len;
+-    int vec_stride;
+-} DisasContext;
+-
++#include "translate.h"
+ static uint32_t gen_opc_condexec_bits[OPC_BUF_SIZE];
+ 
+ #if defined(CONFIG_USER_ONLY)
+@@ -83,7 +61,7 @@
+ #define DISAS_SWI 5
+ #define DISAS_SMC 6
+ 
+-static TCGv_ptr cpu_env;
++TCGv_ptr cpu_env;
+ /* We reuse the same 64-bit temporaries for efficiency.  */
+ static TCGv_i64 cpu_V0, cpu_V1, cpu_M0;
+ static TCGv_i32 cpu_R[16];
+@@ -136,6 +114,8 @@
+         offsetof(CPUARMState, exclusive_info), "exclusive_info");
+ #endif
+ 
++    a64_translate_init();
++
+ #define GEN_HELPER 2
+ #include "helper.h"
+ }
+@@ -10082,7 +10062,9 @@
+             tcg_gen_debug_insn_start(dc->pc);
+         }
+ 
+-        if (dc->thumb) {
++        if (is_a64(env)) {
++            disas_a64_insn(env, dc);
++        } else if (dc->thumb) {
+             disas_thumb_insn(env, dc);
+             if (dc->condexec_mask) {
+                 dc->condexec_cond = (dc->condexec_cond & 0xe)
+@@ -10102,7 +10084,7 @@
+         }
+ 
+         if (tcg_check_temp_count()) {
+-            fprintf(stderr, "TCG temporary leak before %08x\n", dc->pc);
++            fprintf(stderr, "TCG temporary leak before "TARGET_FMT_lx"\n", dc->pc);
+         }
+ 
+         /* Translation stops when a conditional branch is encountered.
+@@ -10142,6 +10124,9 @@
+             gen_set_label(dc->condlabel);
+         }
+         if (dc->condjmp || !dc->is_jmp) {
++            if (is_a64(env)) {
++                gen_a64_set_pc_im(dc->pc);
++            }
+             gen_set_pc_im(dc->pc);
+             dc->condjmp = 0;
+         }
+@@ -10243,6 +10228,11 @@
+     int i;
+     uint32_t psr;
+ 
++    if (is_a64(env)) {
++        cpu_dump_state_a64(env, f, cpu_fprintf, flags);
++        return;
++    }
++
+     for(i=0;i<16;i++) {
+         cpu_fprintf(f, "R%02d=%08x", i, env->regs[i]);
+         if ((i % 4) == 3)
+Index: qemu-1.6.0+dfsg/target-arm/translate.h
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ qemu-1.6.0+dfsg/target-arm/translate.h	2013-11-05 22:23:23.107416137 +0000
+@@ -0,0 +1,35 @@
++#ifndef TARGET_ARM_TRANSLATE_H
++#define TARGET_ARM_TRANSLATE_H
++
++/* internal defines */
++typedef struct DisasContext {
++    target_ulong pc;
++    int is_jmp;
++    /* Nonzero if this instruction has been conditionally skipped.  */
++    int condjmp;
++    /* The label that will be jumped to when the instruction is skipped.  */
++    int condlabel;
++    /* Thumb-2 conditional execution bits.  */
++    int condexec_mask;
++    int condexec_cond;
++    struct TranslationBlock *tb;
++    int singlestep_enabled;
++    int thumb;
++    int bswap_code;
++#if !defined(CONFIG_USER_ONLY)
++    int user;
++#endif
++    int vfp_enabled;
++    int vec_len;
++    int vec_stride;
++} DisasContext;
++
++extern TCGv_ptr cpu_env;
++
++void a64_translate_init(void);
++void cpu_dump_state_a64(CPUARMState *env, FILE *f,
++        fprintf_function cpu_fprintf, int flags);
++void disas_a64_insn(CPUARMState *env, DisasContext *s);
++void gen_a64_set_pc_im(uint64_t val);
++
++#endif /* TARGET_ARM_TRANSLATE_H */

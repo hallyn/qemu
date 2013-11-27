@@ -1,0 +1,207 @@
+From 9e444c971c616f70fb0206a1ed9f5d212125d59b Mon Sep 17 00:00:00 2001
+From: Alexander Graf <agraf@suse.de>
+Date: Fri, 1 Mar 2013 02:42:57 +0100
+Subject: [PATCH 090/169] add some rounding logic
+
+---
+ target-arm/cpu.h           |  5 +++++
+ target-arm/helper-a64.c    | 20 ++++++++++++++++++++
+ target-arm/helper.c        | 18 +++++++++---------
+ target-arm/helper.h        |  1 +
+ target-arm/translate-a64.c | 31 +++++++++++++++++++++++++++++--
+ 5 files changed, 64 insertions(+), 11 deletions(-)
+
+Index: qemu-1.6.0+dfsg/target-arm/cpu.h
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/cpu.h	2013-11-05 22:23:34.555386500 +0000
++++ qemu-1.6.0+dfsg/target-arm/cpu.h	2013-11-05 22:23:34.547386522 +0000
+@@ -303,6 +303,11 @@
+ #define PSTATE_V_SHIFT 0
+ #define PSTATE_V  (1 << PSTATE_V_SHIFT)
+ 
++#define ROUND_MODE_TIEEVEN  0
++#define ROUND_MODE_UP       1
++#define ROUND_MODE_DOWN     2
++#define ROUND_MODE_ZERO     3
++
+ /* you can call this signal handler from your SIGBUS and SIGSEGV
+    signal handlers to inform the virtual CPU of exceptions. non zero
+    is returned if the signal was handled by the virtual CPU.  */
+Index: qemu-1.6.0+dfsg/target-arm/helper-a64.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/helper-a64.c	2013-11-05 22:23:34.555386500 +0000
++++ qemu-1.6.0+dfsg/target-arm/helper-a64.c	2013-11-05 22:23:34.547386522 +0000
+@@ -266,3 +266,23 @@
+     return float32_round_to_int(x, fp_status);
+ }
+ 
++void HELPER(set_rmode)(uint32_t rmode, void *fp_status)
++{
++    switch (rmode) {
++    case ROUND_MODE_TIEEVEN:
++    default:
++        rmode = float_round_nearest_even;
++        break;
++    case ROUND_MODE_UP:
++        rmode = float_round_up;
++        break;
++    case ROUND_MODE_DOWN:
++        rmode = float_round_down;
++        break;
++    case ROUND_MODE_ZERO:
++        rmode = float_round_to_zero;
++        break;
++    /* XXX add fpcr rounding (exact and not exact) */
++    }
++    set_float_rounding_mode(rmode, fp_status);
++}
+Index: qemu-1.6.0+dfsg/target-arm/helper.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/helper.c	2013-11-05 22:23:34.555386500 +0000
++++ qemu-1.6.0+dfsg/target-arm/helper.c	2013-11-05 22:23:34.547386522 +0000
+@@ -3536,16 +3536,16 @@
+     if (changed & (3 << 22)) {
+         i = (val >> 22) & 3;
+         switch (i) {
+-        case 0:
++        case ROUND_MODE_TIEEVEN:
+             i = float_round_nearest_even;
+             break;
+-        case 1:
++        case ROUND_MODE_UP:
+             i = float_round_up;
+             break;
+-        case 2:
++        case ROUND_MODE_DOWN:
+             i = float_round_down;
+             break;
+-        case 3:
++        case ROUND_MODE_ZERO:
+             i = float_round_to_zero;
+             break;
+         }
+@@ -3732,20 +3732,20 @@
+         return 0; \
+     } \
+     tmp = float##fsz##_scalbn(x, shift, fpst); \
+-    r = float##fsz##_to_##itype##_round_to_zero(tmp, fpst); \
++    r = float##fsz##_to_##itype(tmp, fpst); \
+     return r; \
+ }
+ 
+-VFP_CONV_FIX(sh, d, 64, 64, int16, )
++VFP_CONV_FIX(sh, d, 64, 64, int32, )
+ VFP_CONV_FIX(sl, d, 64, 64, int32, )
+ VFP_CONV_FIX(sq, d, 64, 64, int64, )
+-VFP_CONV_FIX(uh, d, 64, 64, uint16, u)
++VFP_CONV_FIX(uh, d, 64, 64, uint32, u)
+ VFP_CONV_FIX(ul, d, 64, 64, uint32, u)
+ VFP_CONV_FIX(uq, d, 64, 64, uint64, u)
+-VFP_CONV_FIX(sh, s, 32, 32, int16, )
++VFP_CONV_FIX(sh, s, 32, 32, int32, )
+ VFP_CONV_FIX(sl, s, 32, 32, int32, )
+ VFP_CONV_FIX(sq, s, 32, 64, int64, )
+-VFP_CONV_FIX(uh, s, 32, 32, uint16, u)
++VFP_CONV_FIX(uh, s, 32, 32, uint32, u)
+ VFP_CONV_FIX(ul, s, 32, 32, uint32, u)
+ VFP_CONV_FIX(uq, s, 32, 64, int64, u)
+ #undef VFP_CONV_FIX
+Index: qemu-1.6.0+dfsg/target-arm/helper.h
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/helper.h	2013-11-05 22:23:34.555386500 +0000
++++ qemu-1.6.0+dfsg/target-arm/helper.h	2013-11-05 22:23:34.547386522 +0000
+@@ -488,6 +488,7 @@
+ DEF_HELPER_FLAGS_2(rintd, TCG_CALL_NO_RWG_SE, f64, f64, ptr)
+ DEF_HELPER_FLAGS_2(rints, TCG_CALL_NO_RWG_SE, f32, f32, ptr)
+ DEF_HELPER_1(tb_flush, void, env)
++DEF_HELPER_FLAGS_2(set_rmode, TCG_CALL_NO_RWG_SE, void, i32, ptr)
+ 
+ 
+ 
+Index: qemu-1.6.0+dfsg/target-arm/translate-a64.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/translate-a64.c	2013-11-05 22:23:34.555386500 +0000
++++ qemu-1.6.0+dfsg/target-arm/translate-a64.c	2013-11-05 22:23:34.551386511 +0000
+@@ -1629,6 +1629,7 @@
+     TCGv_i64 tcg_double;
+     TCGv_i64 tcg_fpstatus = get_fpstatus_ptr();
+     TCGv_i32 tcg_shift = tcg_const_i32(scale);
++    TCGv_i32 tcg_rmode = tcg_const_i32(rmode);
+     TCGv_i64 tcg_tmp;
+ 
+     if (direction) {
+@@ -1653,7 +1654,8 @@
+         }
+         tcg_int = tcg_tmp;
+     }
+-    /* XXX handle rmode */
++
++    gen_helper_set_rmode(tcg_rmode, tcg_fpstatus);
+ 
+     switch ((direction ? 0x10 : 0)|
+             (is_double ? 0x1 : 0) |
+@@ -1722,12 +1724,17 @@
+         unallocated_encoding(s);
+     }
+ 
++    /* XXX use fpcr */
++    tcg_gen_movi_i32(tcg_rmode, -1);
++    gen_helper_set_rmode(tcg_rmode, tcg_fpstatus);
++
+     if (is_32bit && direction) {
+         tcg_gen_ext32u_i64(tcg_int, tcg_int);
+     }
+ 
+     tcg_temp_free_i64(tcg_fpstatus);
+     tcg_temp_free_i32(tcg_shift);
++    tcg_temp_free_i32(tcg_rmode);
+ }
+ 
+ /* fixed <-> floating conversion */
+@@ -1756,7 +1763,7 @@
+         return;
+     }
+ 
+-    handle_fpfpcvt(s, insn, direction, 0);
++    handle_fpfpcvt(s, insn, direction, ROUND_MODE_ZERO);
+ }
+ 
+ /* floating <-> integer conversion */
+@@ -1921,8 +1928,18 @@
+     case 0xc: /* FRINTA */
+     case 0xe: /* FRINTX */
+     case 0xf: /* FRINTI */
++    {
++        TCGv_i32 tcg_rmode = tcg_const_i32(opcode & 7);
++
++        gen_helper_set_rmode(tcg_rmode, fpst);
+         gen_helper_rintd(tcg_res, tcg_op, fpst);
++
++        /* XXX use fpcr */
++        tcg_gen_movi_i32(tcg_rmode, -1);
++        gen_helper_set_rmode(tcg_rmode, fpst);
++        tcg_temp_free_i32(tcg_rmode);
+         break;
++    }
+     default:
+         unallocated_encoding(s);
+         return;
+@@ -1983,8 +2000,18 @@
+     case 0xc: /* FRINTA */
+     case 0xe: /* FRINTX */
+     case 0xf: /* FRINTI */
++    {
++        TCGv_i32 tcg_rmode = tcg_const_i32(opcode & 7);
++
++        gen_helper_set_rmode(tcg_rmode, fpst);
+         gen_helper_rints(tcg_res, tcg_op, fpst);
++
++        /* XXX use fpcr */
++        tcg_gen_movi_i32(tcg_rmode, -1);
++        gen_helper_set_rmode(tcg_rmode, fpst);
++        tcg_temp_free_i32(tcg_rmode);
+         break;
++    }
+     default:
+         unallocated_encoding(s);
+         return;

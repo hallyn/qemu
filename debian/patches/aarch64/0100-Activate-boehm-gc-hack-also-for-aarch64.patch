@@ -1,0 +1,24 @@
+From 67372fcaf4383d8573d2f91d5e20da1a410a08be Mon Sep 17 00:00:00 2001
+From: Michael Matz <matz@suse.de>
+Date: Thu, 7 Mar 2013 17:06:59 +0100
+Subject: [PATCH 100/169] Activate boehm-gc hack also for aarch64
+
+Add TARGET_ARM64 to the #ifdef, but it doesn't really solve the problem
+yet.
+---
+ linux-user/signal.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+Index: qemu-1.6.0+dfsg/linux-user/signal.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/linux-user/signal.c	2013-11-05 22:23:36.591381231 +0000
++++ qemu-1.6.0+dfsg/linux-user/signal.c	2013-11-05 22:23:36.591381231 +0000
+@@ -644,7 +644,7 @@
+         if (host_sig != SIGSEGV && host_sig != SIGBUS) {
+             sigfillset(&act1.sa_mask);
+             act1.sa_flags = SA_SIGINFO;
+-#ifdef TARGET_ARM
++#if defined(TARGET_ARM) || defined(TARGET_ARM64)
+             /* Breaks boehm-gc, we have to do this manually */
+             /*
+              * Unfortunately our hacks only work as long as we don't do parallel

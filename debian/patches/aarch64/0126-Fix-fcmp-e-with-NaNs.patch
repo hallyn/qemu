@@ -1,0 +1,49 @@
+From a62437c4cd6cd754cddd4864d27d24d4e1836a04 Mon Sep 17 00:00:00 2001
+From: Michael Matz <matz@suse.de>
+Date: Sat, 30 Mar 2013 21:42:36 +0100
+Subject: [PATCH 126/169] Fix fcmp(e) with NaNs
+
+The flags for comparing with NaNs ommitted the C flag (like
+also equality for normal numbers, but there it was more harmless,
+as usually the Z flag is tested).
+---
+ target-arm/helper.c | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+Index: qemu-1.6.0+dfsg/target-arm/helper.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/helper.c	2013-11-05 22:23:41.767367831 +0000
++++ qemu-1.6.0+dfsg/target-arm/helper.c	2013-11-05 22:23:41.759367853 +0000
+@@ -3663,16 +3663,16 @@
+     return float64_sqrt(a, &env->vfp.fp_status);
+ }
+ 
+-/* XXX: check quiet/signaling case */
++/* XXX: check/implement signaling NaN case */
+ #define DO_VFP_cmp(p, type) \
+ uint32_t VFP_HELPER(cmp, p)(type a, type b, CPUARMState *env)  \
+ { \
+     uint32_t flags; \
+     switch(type ## _compare_quiet(a, b, &env->vfp.fp_status)) { \
+-    case float_relation_equal:              flags = PSTATE_Z; break; \
++    case float_relation_equal:              flags = PSTATE_Z | PSTATE_C; break; \
+     case float_relation_less:               flags = PSTATE_N; break; \
+     case float_relation_greater:            flags = PSTATE_C; break; \
+-    default: case float_relation_unordered: flags = PSTATE_V; break; \
++    default: case float_relation_unordered: flags = PSTATE_C | PSTATE_V; break; \
+     } \
+     return flags; \
+ } \
+@@ -3686,10 +3686,10 @@
+ { \
+     uint32_t flags; \
+     switch(type ## _compare(a, b, &env->vfp.fp_status)) { \
+-    case float_relation_equal:              flags = PSTATE_Z; break; \
++    case float_relation_equal:              flags = PSTATE_Z | PSTATE_C; break; \
+     case float_relation_less:               flags = PSTATE_N; break; \
+     case float_relation_greater:            flags = PSTATE_C; break; \
+-    default: case float_relation_unordered: flags = PSTATE_V; break; \
++    default: case float_relation_unordered: flags = PSTATE_C | PSTATE_V; break; \
+     } \
+     qemu_log("fcmpe: %d\n", flags); \
+     return flags; \

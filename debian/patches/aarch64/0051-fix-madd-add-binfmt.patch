@@ -1,0 +1,71 @@
+From 82954d06c75af4ffe7a22844ad523c05932bf2ec Mon Sep 17 00:00:00 2001
+From: Alexander Graf <agraf@suse.de>
+Date: Mon, 11 Feb 2013 03:47:17 +0100
+Subject: [PATCH 051/169] fix madd, add binfmt
+
+---
+ scripts/qemu-binfmt-conf.sh |  3 +++
+ target-arm/translate-a64.c  | 17 +++++++++++------
+ target-arm/translate.c      |  2 +-
+ 3 files changed, 15 insertions(+), 7 deletions(-)
+
+Index: qemu-1.6.0+dfsg/scripts/qemu-binfmt-conf.sh
+===================================================================
+--- qemu-1.6.0+dfsg.orig/scripts/qemu-binfmt-conf.sh	2013-11-05 22:23:26.619407044 +0000
++++ qemu-1.6.0+dfsg/scripts/qemu-binfmt-conf.sh	2013-11-05 22:23:26.611407066 +0000
+@@ -70,3 +70,6 @@
+ if [ $cpu != "s390x" ] ; then
+     echo   ':s390x:M::\x7fELF\x02\x02\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x16:\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff:/usr/bin/qemu-s390x-binfmt:P' > /proc/sys/fs/binfmt_misc/register
+ fi
++if [ $cpu != "aarch64" ] ; then
++    echo   ':aarch64:M::\x7fELF\x02\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\xb7:\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff:/usr/bin/qemu-arm64-binfmt:P' > /proc/sys/fs/binfmt_misc/register
++fi
+Index: qemu-1.6.0+dfsg/target-arm/translate-a64.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/translate-a64.c	2013-11-05 22:23:26.619407044 +0000
++++ qemu-1.6.0+dfsg/target-arm/translate-a64.c	2013-11-05 22:23:26.611407066 +0000
+@@ -297,7 +297,7 @@
+ {
+     uint64_t addr = s->pc - 4 + (get_sbits(insn, 5, 14) << 2);
+     bool is_one = get_bits(insn, 24, 1);
+-    int shift = get_bits(insn, 19, 5);
++    int shift = get_bits(insn, 19, 5) | (get_bits(insn, 31, 1) << 5);
+     int source = get_reg(insn);
+     int no_match;
+     uint64_t mask = 1ULL << shift;
+@@ -1461,12 +1461,17 @@
+     tcg_op2 = tcg_temp_new_i64();
+     tcg_tmp = tcg_temp_new_i64();
+ 
+-    if (is_signed) {
+-        tcg_gen_ext32s_i64(tcg_op1, cpu_reg(rn));
+-        tcg_gen_ext32s_i64(tcg_op2, cpu_reg(rm));
++    if (op_id < 0x42) {
++        tcg_gen_mov_i64(tcg_op1, cpu_reg(rn));
++        tcg_gen_mov_i64(tcg_op2, cpu_reg(rm));
+     } else {
+-        tcg_gen_ext32u_i64(tcg_op1, cpu_reg(rn));
+-        tcg_gen_ext32u_i64(tcg_op2, cpu_reg(rm));
++        if (is_signed) {
++            tcg_gen_ext32s_i64(tcg_op1, cpu_reg(rn));
++            tcg_gen_ext32s_i64(tcg_op2, cpu_reg(rm));
++        } else {
++            tcg_gen_ext32u_i64(tcg_op1, cpu_reg(rn));
++            tcg_gen_ext32u_i64(tcg_op2, cpu_reg(rm));
++        }
+     }
+ 
+     tcg_gen_mul_i64(tcg_tmp, tcg_op1, tcg_op2);
+Index: qemu-1.6.0+dfsg/target-arm/translate.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/translate.c	2013-11-05 22:23:26.619407044 +0000
++++ qemu-1.6.0+dfsg/target-arm/translate.c	2013-11-05 22:23:26.611407066 +0000
+@@ -9928,7 +9928,7 @@
+     uint16_t *gen_opc_end;
+     int j, lj;
+     target_ulong pc_start;
+-    uint32_t next_page_start;
++    target_ulong next_page_start;
+     int num_insns;
+     int max_insns;
+ 

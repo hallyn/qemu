@@ -1,0 +1,297 @@
+From 95110c94c57ad32fa95bc346c81ede0ee8fc080b Mon Sep 17 00:00:00 2001
+From: Alexander Graf <agraf@suse.de>
+Date: Fri, 15 Feb 2013 17:24:01 +0100
+Subject: [PATCH 056/169] implement (untested!) fpfpconv
+
+---
+ target-arm/cpu.h           |   2 +-
+ target-arm/helper.c        |  28 +++++-----
+ target-arm/helper.h        |   8 +++
+ target-arm/translate-a64.c | 131 +++++++++++++++++++++++++++++++++++++++++----
+ 4 files changed, 145 insertions(+), 24 deletions(-)
+
+Index: qemu-1.6.0+dfsg/target-arm/cpu.h
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/cpu.h	2013-11-05 22:23:27.739404146 +0000
++++ qemu-1.6.0+dfsg/target-arm/cpu.h	2013-11-05 22:23:27.735404156 +0000
+@@ -215,7 +215,7 @@
+ 
+     /* VFP coprocessor state.  */
+     struct {
+-        float64 regs[32];
++        float64 regs[64];
+ 
+         uint32_t xregs[16];
+         /* We store these fpcsr fields separately for convenience.  */
+Index: qemu-1.6.0+dfsg/target-arm/helper.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/helper.c	2013-11-05 22:23:27.739404146 +0000
++++ qemu-1.6.0+dfsg/target-arm/helper.c	2013-11-05 22:23:27.735404156 +0000
+@@ -3701,16 +3701,16 @@
+ }
+ 
+ /* VFP3 fixed point conversion.  */
+-#define VFP_CONV_FIX(name, p, fsz, itype, sign) \
+-float##fsz HELPER(vfp_##name##to##p)(uint##fsz##_t  x, uint32_t shift, \
++#define VFP_CONV_FIX(name, p, fsz, isz, itype, sign) \
++float##fsz HELPER(vfp_##name##to##p)(uint##isz##_t  x, uint32_t shift, \
+                                     void *fpstp) \
+ { \
+     float_status *fpst = fpstp; \
+     float##fsz tmp; \
+-    tmp = sign##int32_to_##float##fsz((itype##_t)x, fpst); \
++    tmp = sign##int##isz##_to_##float##fsz((itype##_t)x, fpst); \
+     return float##fsz##_scalbn(tmp, -(int)shift, fpst); \
+ } \
+-uint##fsz##_t HELPER(vfp_to##name##p)(float##fsz x, uint32_t shift, \
++uint##isz##_t HELPER(vfp_to##name##p)(float##fsz x, uint32_t shift, \
+                                        void *fpstp) \
+ { \
+     float_status *fpst = fpstp; \
+@@ -3723,14 +3723,18 @@
+     return float##fsz##_to_##itype##_round_to_zero(tmp, fpst); \
+ }
+ 
+-VFP_CONV_FIX(sh, d, 64, int16, )
+-VFP_CONV_FIX(sl, d, 64, int32, )
+-VFP_CONV_FIX(uh, d, 64, uint16, u)
+-VFP_CONV_FIX(ul, d, 64, uint32, u)
+-VFP_CONV_FIX(sh, s, 32, int16, )
+-VFP_CONV_FIX(sl, s, 32, int32, )
+-VFP_CONV_FIX(uh, s, 32, uint16, u)
+-VFP_CONV_FIX(ul, s, 32, uint32, u)
++VFP_CONV_FIX(sh, d, 64, 64, int16, )
++VFP_CONV_FIX(sl, d, 64, 64, int32, )
++VFP_CONV_FIX(sq, d, 64, 64, int64, )
++VFP_CONV_FIX(uh, d, 64, 64, uint16, u)
++VFP_CONV_FIX(ul, d, 64, 64, uint32, u)
++VFP_CONV_FIX(uq, d, 64, 64, uint64, u)
++VFP_CONV_FIX(sh, s, 32, 32, int16, )
++VFP_CONV_FIX(sl, s, 32, 32, int32, )
++VFP_CONV_FIX(sq, s, 32, 64, int64, )
++VFP_CONV_FIX(uh, s, 32, 32, uint16, u)
++VFP_CONV_FIX(ul, s, 32, 32, uint32, u)
++VFP_CONV_FIX(uq, s, 32, 64, int64, u)
+ #undef VFP_CONV_FIX
+ 
+ /* Half precision conversions.  */
+Index: qemu-1.6.0+dfsg/target-arm/helper.h
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/helper.h	2013-11-05 22:23:27.739404146 +0000
++++ qemu-1.6.0+dfsg/target-arm/helper.h	2013-11-05 22:23:27.735404156 +0000
+@@ -109,20 +109,28 @@
+ 
+ DEF_HELPER_3(vfp_toshs, i32, f32, i32, ptr)
+ DEF_HELPER_3(vfp_tosls, i32, f32, i32, ptr)
++DEF_HELPER_3(vfp_tosqs, i64, f32, i32, ptr)
+ DEF_HELPER_3(vfp_touhs, i32, f32, i32, ptr)
+ DEF_HELPER_3(vfp_touls, i32, f32, i32, ptr)
++DEF_HELPER_3(vfp_touqs, i64, f32, i32, ptr)
+ DEF_HELPER_3(vfp_toshd, i64, f64, i32, ptr)
+ DEF_HELPER_3(vfp_tosld, i64, f64, i32, ptr)
++DEF_HELPER_3(vfp_tosqd, i64, f64, i32, ptr)
+ DEF_HELPER_3(vfp_touhd, i64, f64, i32, ptr)
+ DEF_HELPER_3(vfp_tould, i64, f64, i32, ptr)
++DEF_HELPER_3(vfp_touqd, i64, f64, i32, ptr)
+ DEF_HELPER_3(vfp_shtos, f32, i32, i32, ptr)
+ DEF_HELPER_3(vfp_sltos, f32, i32, i32, ptr)
++DEF_HELPER_3(vfp_sqtos, f32, i64, i32, ptr)
+ DEF_HELPER_3(vfp_uhtos, f32, i32, i32, ptr)
+ DEF_HELPER_3(vfp_ultos, f32, i32, i32, ptr)
++DEF_HELPER_3(vfp_uqtos, f32, i64, i32, ptr)
+ DEF_HELPER_3(vfp_shtod, f64, i64, i32, ptr)
+ DEF_HELPER_3(vfp_sltod, f64, i64, i32, ptr)
++DEF_HELPER_3(vfp_sqtod, f64, i64, i32, ptr)
+ DEF_HELPER_3(vfp_uhtod, f64, i64, i32, ptr)
+ DEF_HELPER_3(vfp_ultod, f64, i64, i32, ptr)
++DEF_HELPER_3(vfp_uqtod, f64, i64, i32, ptr)
+ 
+ DEF_HELPER_2(vfp_fcvt_f16_to_f32, f32, i32, env)
+ DEF_HELPER_2(vfp_fcvt_f32_to_f16, i32, f32, env)
+Index: qemu-1.6.0+dfsg/target-arm/translate-a64.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/translate-a64.c	2013-11-05 22:23:27.739404146 +0000
++++ qemu-1.6.0+dfsg/target-arm/translate-a64.c	2013-11-05 22:23:27.735404156 +0000
+@@ -132,6 +132,17 @@
+     }
+ }
+ 
++static TCGv_ptr get_fpstatus_ptr(void)
++{
++    TCGv_ptr statusptr = tcg_temp_new_ptr();
++    int offset;
++
++    offset = offsetof(CPUARMState, vfp.standard_fp_status);
++    tcg_gen_addi_ptr(statusptr, cpu_env, offset);
++
++    return statusptr;
++}
++
+ static int get_mem_index(DisasContext *s)
+ {
+     /* XXX only user mode for now */
+@@ -217,7 +228,7 @@
+         tcg_gen_movi_i64(cpu_reg(30), s->pc);
+         break;
+     case 2: /* RET */
+-        source = 30; /* XXX spec says "if absent"? */
++        source = 30;
+         break;
+     case 3:
+         unallocated_encoding(s);
+@@ -779,7 +790,7 @@
+ {
+     TCGv_i64 tcg_tmp = tcg_temp_new_i64();
+     TCGv_i64 tcg_addr = tcg_temp_new_i64();
+-    int freg_offs = offsetof(CPUARMState, fregs[0]) + dest * 2;
++    int freg_offs = offsetof(CPUARMState, vfp.regs[dest * 2]);
+ 
+     /* we don't want to modify the caller's tcg_addr */
+     tcg_gen_mov_i64(tcg_addr, tcg_addr_real);
+@@ -1527,7 +1538,6 @@
+ /* fixed <-> floating conversion */
+ static void handle_fpfpconv(DisasContext *s, uint32_t insn)
+ {
+-#if 0
+     int rd = get_reg(insn);
+     int rn = get_bits(insn, 5, 5);
+     int scale = get_bits(insn, 10, 6);
+@@ -1536,9 +1546,112 @@
+     int type = get_bits(insn, 22, 2);
+     bool is_s = get_bits(insn, 29, 1);
+     bool is_32bit = !get_bits(insn, 31, 1);
+-#endif
++    bool is_double = get_bits(type, 0, 1);
++    bool is_signed = !get_bits(opcode, 0, 1);
++    bool direction;
++    int freg_offs;
++    int fp_reg;
++    TCGv_i64 tcg_int;
++    TCGv_i64 tcg_single;
++    TCGv_i64 tcg_double;
++    TCGv_i64 tcg_fpstatus = get_fpstatus_ptr();
++    TCGv_i32 tcg_shift = tcg_const_i32(scale);
++    TCGv_i64 tcg_tmp;
++
++    if (is_s || (type > 1) || (opcode > 1)) {
++        unallocated_encoding(s);
++        return;
++    }
++
++    switch (rmode) {
++    case 0x1: /* [S|U]CVTF (scalar->float) */
++        direction = 0;
++        fp_reg = rd;
++        tcg_int = cpu_reg(rn);
++        break;
++    case 0x3: /* FCVTZ[S|U] (float->scalar) */
++        direction = 1;
++        fp_reg = rn;
++        tcg_int = cpu_reg(rd);
++        break;
++    default:
++        unallocated_encoding(s);
++        return;
++    }
++
++    freg_offs = offsetof(CPUARMState, vfp.regs[fp_reg * 2]);
++
++    /* XXX handle is_32bit case when doing scalar->single) */
+ 
+-    unallocated_encoding(s);
++    switch ((direction ? 0x10 : 0)|
++            (is_double ? 0x1 : 0) |
++            (is_signed ? 0x2 : 0)) {
++    case 0x0: /* unsigned scalar->single */
++        tcg_single = tcg_temp_new_i32();
++        tcg_tmp = tcg_temp_new_i64();
++        gen_helper_vfp_uqtos(tcg_single, tcg_int, tcg_shift, tcg_fpstatus);
++        tcg_gen_extu_i32_i64(tcg_tmp, tcg_single);
++        tcg_gen_st32_i64(tcg_tmp, cpu_env, freg_offs);
++        tcg_temp_free_i32(tcg_single);
++        tcg_temp_free_i64(tcg_tmp);
++        break;
++    case 0x1: /* unsigned scalar->double */
++        tcg_double = tcg_temp_new_i64();
++        gen_helper_vfp_uqtod(tcg_double, tcg_int, tcg_shift, tcg_fpstatus);
++        tcg_gen_st_i64(tcg_double, cpu_env, freg_offs);
++        tcg_temp_free_i64(tcg_double);
++        break;
++    case 0x2: /* signed scalar->single */
++        tcg_single = tcg_temp_new_i32();
++        tcg_tmp = tcg_temp_new_i64();
++        gen_helper_vfp_sqtos(tcg_single, tcg_int, tcg_shift, tcg_fpstatus);
++        tcg_gen_extu_i32_i64(tcg_tmp, tcg_single);
++        tcg_gen_st32_i64(tcg_tmp, cpu_env, freg_offs);
++        tcg_temp_free_i32(tcg_single);
++        tcg_temp_free_i64(tcg_tmp);
++        break;
++    case 0x3: /* signed scalar->double */
++        tcg_double = tcg_temp_new_i64();
++        gen_helper_vfp_sqtod(tcg_double, tcg_int, tcg_shift, tcg_fpstatus);
++        tcg_gen_st_i64(tcg_double, cpu_env, freg_offs);
++        tcg_temp_free_i64(tcg_double);
++        break;
++    case 0x10: /* unsigned single->scalar */
++        tcg_single = tcg_temp_new_i32();
++        tcg_tmp = tcg_temp_new_i64();
++        tcg_gen_ld32u_i64(tcg_tmp, cpu_env, freg_offs);
++        tcg_gen_trunc_i64_i32(tcg_single, tcg_tmp);
++        gen_helper_vfp_touqs(tcg_int, tcg_single, tcg_shift, tcg_fpstatus);
++        tcg_temp_free_i32(tcg_single);
++        tcg_temp_free_i64(tcg_tmp);
++        break;
++    case 0x11: /* unsigned single->double */
++        tcg_double = tcg_temp_new_i64();
++        tcg_gen_ld_i64(tcg_double, cpu_env, freg_offs);
++        gen_helper_vfp_touqd(tcg_int, tcg_double, tcg_shift, tcg_fpstatus);
++        tcg_temp_free_i64(tcg_double);
++        break;
++    case 0x12: /* signed single->scalar */
++        tcg_single = tcg_temp_new_i32();
++        tcg_tmp = tcg_temp_new_i64();
++        tcg_gen_ld32u_i64(tcg_tmp, cpu_env, freg_offs);
++        tcg_gen_trunc_i64_i32(tcg_single, tcg_tmp);
++        gen_helper_vfp_tosqs(tcg_int, tcg_single, tcg_shift, tcg_fpstatus);
++        tcg_temp_free_i32(tcg_single);
++        tcg_temp_free_i64(tcg_tmp);
++        break;
++    case 0x13: /* signed single->double */
++        tcg_double = tcg_temp_new_i64();
++        tcg_gen_ld_i64(tcg_double, cpu_env, freg_offs);
++        gen_helper_vfp_tosqd(tcg_int, tcg_double, tcg_shift, tcg_fpstatus);
++        tcg_temp_free_i64(tcg_double);
++        break;
++    default:
++        unallocated_encoding(s);
++    }
++
++    tcg_temp_free_i64(tcg_fpstatus);
++    tcg_temp_free_i32(tcg_shift);
+ }
+ 
+ /* floating <-> integer conversion */
+@@ -1556,10 +1669,10 @@
+         /* FMOV */
+         bool itof = opcode & 1;
+         int dest = itof ? rd : rn;
+-        int freg_offs = offsetof(CPUARMState, fregs[0]) + dest * 2;
++        int freg_offs = offsetof(CPUARMState, vfp.regs[dest * 2]);
+ 
+         if (rmode & 1) {
+-            /* XXX upper Q part */
++            freg_offs += sizeof(float64);
+         }
+ 
+         switch (type |
+@@ -1746,10 +1859,6 @@
+         } else if (get_bits(insn, 21, 1) && !get_bits(insn, 30, 1) &&
+                    !get_bits(insn, 10, 6)) {
+             handle_fpintconv(s, insn);
+-#if 0
+-        } else if (!get_bits(insn, 21, 1) && !get_bits(insn, 29, 2)) {
+-            handle_scvtf(s, insn);
+-#endif
+         } else {
+             goto unknown_insn;
+         }

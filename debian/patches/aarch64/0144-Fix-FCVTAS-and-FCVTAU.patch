@@ -1,0 +1,59 @@
+From 2a717e85817c33a000c37b688e304eb137d1a535 Mon Sep 17 00:00:00 2001
+From: Michael Matz <matz@suse.de>
+Date: Sun, 7 Apr 2013 03:30:59 +0200
+Subject: [PATCH 144/169] Fix FCVTAS and FCVTAU
+
+These used the wrong direction (ItoF), so effectively just produced
+garbage.  We don't implement TIEAWAY rounding, and substitute this
+with TIEEVEN, so we still don't produce the correct value in all
+cases.  But it fixes the gamma functions in python3.
+---
+ target-arm/translate-a64.c | 20 +++++++++++++++++---
+ 1 file changed, 17 insertions(+), 3 deletions(-)
+
+Index: qemu-1.6.0+dfsg/target-arm/translate-a64.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/translate-a64.c	2013-11-05 22:23:45.407358411 +0000
++++ qemu-1.6.0+dfsg/target-arm/translate-a64.c	2013-11-05 22:23:45.403358421 +0000
+@@ -2002,6 +2002,8 @@
+         return;
+     }
+ 
++    /* XXX Hardcodes round_zero, which is correct only for
++       FCVTZ.  The [SU]CVTF use FPCR rounding.  */
+     handle_fpfpcvt(s, insn, direction, ROUND_MODE_ZERO);
+ }
+ 
+@@ -2049,7 +2051,12 @@
+     bool is_s = get_bits(insn, 29, 1);
+     bool is_32bit = !get_bits(insn, 31, 1);
+ 
+-    if (!is_s && (rmode < 2) && (opcode > 5)) {
++    if (is_s) {
++	unallocated_encoding(s);
++	return;
++    }
++
++    if ((rmode < 2) && (opcode > 5)) {
+         /* FMOV */
+         bool itof = opcode & 1;
+         int dest = itof ? rd : rn;
+@@ -2087,9 +2094,16 @@
+         if (is_32bit && !itof) {
+             tcg_gen_ext32u_i64(cpu_reg(rd), cpu_reg(rd));
+         }
+-    } else if (!is_s && ((opcode & 0x6) < 5)) {
++    } else if (opcode < 4) {
+         /* [S|U]CVTF and FCVT[N|P|M|Z][S|U] */
+-        handle_fpfpcvt(s, insn, !(opcode & 0x6), rmode);
++	/* XXX Uses rmode rounding for ItoF, which is supposed to
++	   use FPCR rounding.  For FtoI rmode is correct.  */
++        handle_fpfpcvt(s, insn, opcode < 2, rmode);
++    } else if (rmode == 0 && opcode < 6) {
++	/* FCVTA[SU] */
++	/* XXX This should use ties-away-from-zero rounding,
++	   which we don't implement, so substitute for TIEEVEN.  */
++	handle_fpfpcvt(s, insn, true /*FtoI*/, ROUND_MODE_TIEEVEN);
+     } else {
+         /* XXX */
+         unallocated_encoding(s);

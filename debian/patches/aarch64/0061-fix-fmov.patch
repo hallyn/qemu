@@ -1,0 +1,38 @@
+From b81d5a9cd0bf4b83877ba922b151a09282c64d70 Mon Sep 17 00:00:00 2001
+From: Alexander Graf <agraf@suse.de>
+Date: Fri, 15 Feb 2013 23:25:45 +0100
+Subject: [PATCH 061/169] fix fmov
+
+---
+ target-arm/translate-a64.c | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)
+
+Index: qemu-1.6.0+dfsg/target-arm/translate-a64.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/translate-a64.c	2013-11-05 22:23:28.795401412 +0000
++++ qemu-1.6.0+dfsg/target-arm/translate-a64.c	2013-11-05 22:23:28.791401422 +0000
+@@ -1729,8 +1729,8 @@
+         case 0x2:
+             tcg_gen_ld_i64(cpu_reg(rd), cpu_env, freg_offs);
+             break;
+-        case 0x4:
+-            tcg_gen_ld_i64(cpu_reg(rd), cpu_env, freg_offs + sizeof(float64));
++        case 0x6:
++            tcg_gen_ld_i64(cpu_reg(rd), cpu_env, freg_offs);
+             break;
+         case 0x8:
+             tcg_gen_st32_i64(cpu_reg(rn), cpu_env, freg_offs + sizeof(float32));
+@@ -1741,9 +1741,11 @@
+         case 0xa:
+             tcg_gen_st_i64(cpu_reg(rn), cpu_env, freg_offs);
+             break;
+-        case 0xc:
+-            tcg_gen_st_i64(cpu_reg(rn), cpu_env, freg_offs + sizeof(float64));
++        case 0xe:
++            tcg_gen_st_i64(cpu_reg(rn), cpu_env, freg_offs);
+             break;
++        default:
++            unallocated_encoding(s);
+         }
+ 
+         if (is_32bit && !itof) {

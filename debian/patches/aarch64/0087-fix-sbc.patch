@@ -1,0 +1,25 @@
+From 5862e14b58192f8a898e0ebe4b0178eb141f5bbb Mon Sep 17 00:00:00 2001
+From: Alexander Graf <agraf@suse.de>
+Date: Thu, 28 Feb 2013 01:29:39 +0100
+Subject: [PATCH 087/169] fix sbc
+
+---
+ target-arm/translate-a64.c | 2 --
+ 1 file changed, 2 deletions(-)
+
+Index: qemu-1.6.0+dfsg/target-arm/translate-a64.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/translate-a64.c	2013-11-05 22:23:33.967388023 +0000
++++ qemu-1.6.0+dfsg/target-arm/translate-a64.c	2013-11-05 22:23:33.967388023 +0000
+@@ -819,11 +819,9 @@
+         tcg_gen_shri_i64(tcg_carry, pstate, PSTATE_C_SHIFT);
+         tcg_gen_andi_i64(tcg_carry, tcg_carry, 1);
+         tcg_gen_add_i64(tcg_result, tcg_result, tcg_carry);
+-#if 0 /* XXX This is how the 32bit target does it, but the spec doesn't sound like it */
+         if (sub_op) {
+             tcg_gen_subi_i64(tcg_result, tcg_result, 1);
+         }
+-#endif
+         tcg_temp_free_i64(tcg_carry);
+     }
+ 

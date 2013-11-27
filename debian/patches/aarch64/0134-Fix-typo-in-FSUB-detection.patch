@@ -1,0 +1,22 @@
+From ecfdfcdb63ecc2ddcf8350b11bb2094bddd04570 Mon Sep 17 00:00:00 2001
+From: Michael Matz <matz@suse.de>
+Date: Mon, 1 Apr 2013 04:07:17 +0200
+Subject: [PATCH 134/169] Fix typo in FSUB detection
+
+---
+ target-arm/translate-a64.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+Index: qemu-1.6.0+dfsg/target-arm/translate-a64.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/translate-a64.c	2013-11-05 22:23:43.371363681 +0000
++++ qemu-1.6.0+dfsg/target-arm/translate-a64.c	2013-11-05 22:23:43.371363681 +0000
+@@ -2802,7 +2802,7 @@
+ 		  else
+ 		    gen_helper_vfp_addd(tcg_res, tcg_op1, tcg_op2, fpst);
+ 		  break;
+-	      case 0x110: /* FSUB */
++	      case 0x11a: /* FSUB */
+ 		  if (size == 2)
+ 		    gen_helper_vfp_subs(tcg_res, tcg_op1, tcg_op2, fpst);
+ 		  else

@@ -1,0 +1,26 @@
+From 4cd750dc87c3b108e561c866706b075f427b4821 Mon Sep 17 00:00:00 2001
+From: Alexander Graf <agraf@suse.de>
+Date: Fri, 15 Feb 2013 20:50:40 +0100
+Subject: [PATCH 059/169] add uname hack for glibc kernel detection
+
+---
+ linux-user/syscall.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+Index: qemu-1.6.0+dfsg/linux-user/syscall.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/linux-user/syscall.c	2013-11-05 22:23:28.395402446 +0000
++++ qemu-1.6.0+dfsg/linux-user/syscall.c	2013-11-05 22:23:28.395402446 +0000
+@@ -298,7 +298,12 @@
+   memset(buf, 0, sizeof(*buf));
+   COPY_UTSNAME_FIELD(buf->sysname, uts_buf.sysname);
+   COPY_UTSNAME_FIELD(buf->nodename, uts_buf.nodename);
++#ifdef TARGET_ARM64
++  /* glibc refuses to run on older kernels */
++  COPY_UTSNAME_FIELD(buf->release, "3.8.0");
++#else
+   COPY_UTSNAME_FIELD(buf->release, uts_buf.release);
++#endif
+   COPY_UTSNAME_FIELD(buf->version, uts_buf.version);
+   COPY_UTSNAME_FIELD(buf->machine, uts_buf.machine);
+ #ifdef _GNU_SOURCE

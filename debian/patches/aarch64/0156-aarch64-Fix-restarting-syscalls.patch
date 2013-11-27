@@ -1,0 +1,32 @@
+From 7b8fcdd361b60d08e95ab3649733a72d6d2c0b97 Mon Sep 17 00:00:00 2001
+From: Michael Matz <matz@suse.de>
+Date: Fri, 12 Apr 2013 16:41:10 +0200
+Subject: [PATCH 156/169] aarch64: Fix restarting syscalls
+
+The syscall number isn't in x0, but in x8, and the environment
+could have been changed by the very syscall.
+---
+ linux-user/main.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+Index: qemu-1.6.0+dfsg/linux-user/main.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/linux-user/main.c	2013-11-05 22:23:47.835352125 +0000
++++ qemu-1.6.0+dfsg/linux-user/main.c	2013-11-05 22:23:47.827352147 +0000
+@@ -882,6 +882,7 @@
+ #ifdef TARGET_ARM64
+ 	        TaskState *ts = ((CPUArchState*)env)->opaque;
+ 	        target_ulong r;
++		target_ulong callid = env->xregs[8];
+                 r = do_syscall(env,
+ 			       env->xregs[8],
+ 			       env->xregs[0],
+@@ -892,7 +893,7 @@
+ 			       env->xregs[5],
+ 			       0, 0);
+ 		if ((r == -EINTR) && ts->signal_restart &&
+-		    syscall_restartable(env->xregs[0])) {
++		    syscall_restartable(callid)) {
+ 		    env->pc -= 4;
+ 		} else {
+ 		    env->xregs[0] = r;

@@ -1,0 +1,86 @@
+From 336fb62e03c4081ccb3ac2aa5e6e4e477d191760 Mon Sep 17 00:00:00 2001
+From: Michael Matz <matz@suse.de>
+Date: Sat, 23 Mar 2013 05:36:39 +0100
+Subject: [PATCH 113/169] Implement CCMP
+
+This implements the remaining instructions from page 0x1a, ccmp and
+ccmn (register and immediate).
+---
+ target-arm/helper-a64.c    | 20 ++++++++++++++++++++
+ target-arm/helper.h        |  1 +
+ target-arm/translate-a64.c | 19 ++++++++++++++++++-
+ 3 files changed, 39 insertions(+), 1 deletion(-)
+
+Index: qemu-1.6.0+dfsg/target-arm/helper-a64.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/helper-a64.c	2013-11-05 22:23:39.163374573 +0000
++++ qemu-1.6.0+dfsg/target-arm/helper-a64.c	2013-11-05 22:23:39.155374593 +0000
+@@ -129,6 +129,26 @@
+     return (inst >> start) & ((1 << len) - 1);
+ }
+ 
++uint32_t HELPER(ccmp)(uint32_t pstate, uint32_t insn, uint64_t op1, uint64_t op2)
++{
++  int flags;
++  int cond = get_bits(insn, 12, 4);
++  if (helper_cond(pstate, cond)) {
++      uint64_t res;
++      if (get_bits(insn, 30, 1)) {
++	  op2 = ~op2;
++	  res = op1 + op2 + 1;
++      } else
++	res = op1 + op2;
++      if (get_bits(insn, 31, 1))
++	flags = helper_pstate_add (pstate, op1, op2, res);
++      else
++	flags = helper_pstate_add32 (pstate, op1, op2, res);
++  } else
++    flags = get_bits(insn, 0, 4);
++  return flags;
++}
++
+ uint64_t HELPER(csel)(uint32_t pstate, uint32_t insn, uint64_t n, uint64_t m)
+ {
+     bool else_inc = get_bits(insn, 10, 1);
+Index: qemu-1.6.0+dfsg/target-arm/helper.h
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/helper.h	2013-11-05 22:23:39.163374573 +0000
++++ qemu-1.6.0+dfsg/target-arm/helper.h	2013-11-05 22:23:39.155374593 +0000
+@@ -485,6 +485,7 @@
+ DEF_HELPER_FLAGS_4(pstate_sub, TCG_CALL_NO_RWG_SE, i32, i32, i64, i64, i64)
+ DEF_HELPER_FLAGS_4(pstate_sub32, TCG_CALL_NO_RWG_SE, i32, i32, i64, i64, i64)
+ DEF_HELPER_FLAGS_2(cond, TCG_CALL_NO_RWG_SE, i32, i32, i32)
++DEF_HELPER_FLAGS_4(ccmp, TCG_CALL_NO_RWG_SE, i32, i32, i32, i64, i64)
+ DEF_HELPER_FLAGS_4(csel, TCG_CALL_NO_RWG_SE, i64, i32, i32, i64, i64)
+ DEF_HELPER_FLAGS_3(sign_extend, TCG_CALL_NO_RWG_SE, i64, i64, i64, i64)
+ DEF_HELPER_FLAGS_2(udiv64, TCG_CALL_NO_RWG_SE, i64, i64, i64)
+Index: qemu-1.6.0+dfsg/target-arm/translate-a64.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/translate-a64.c	2013-11-05 22:23:39.163374573 +0000
++++ qemu-1.6.0+dfsg/target-arm/translate-a64.c	2013-11-05 22:23:39.155374593 +0000
+@@ -1490,7 +1490,24 @@
+ 
+ static void handle_ccmp(DisasContext *s, uint32_t insn)
+ {
+-  unallocated_encoding(s);
++    int rn = get_bits(insn, 5, 5);
++    int rm = get_bits(insn, 16, 5);
++    TCGv_i32 tcg_insn = tcg_const_i32(insn);
++
++    if (get_bits(insn, 4, 1) || get_bits(insn, 10, 1) || !get_bits(insn, 29, 1)) {
++	unallocated_encoding(s);
++	return;
++    }
++
++    if (get_bits(insn, 11, 1)) {
++	TCGv_i64 imm = tcg_const_i64(rm);
++	gen_helper_ccmp(pstate, pstate, tcg_insn, cpu_reg(rn), imm);
++	tcg_temp_free_i64(imm);
++    } else {
++	gen_helper_ccmp(pstate, pstate, tcg_insn, cpu_reg(rn), cpu_reg(rm));
++    }
++
++    tcg_temp_free_i32(tcg_insn);
+ }
+ 
+ /* Conditional select, CSEL, CS{INC,INV,NEG} */

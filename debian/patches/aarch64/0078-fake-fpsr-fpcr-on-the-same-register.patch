@@ -1,0 +1,33 @@
+From 2706a9433ace6e51f5b153a9f6e867db4dc64b63 Mon Sep 17 00:00:00 2001
+From: Alexander Graf <agraf@suse.de>
+Date: Thu, 21 Feb 2013 19:42:05 +0100
+Subject: [PATCH 078/169] fake fpsr fpcr on the same register
+
+---
+ target-arm/translate-a64.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+Index: qemu-1.6.0+dfsg/target-arm/translate-a64.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/translate-a64.c	2013-11-05 22:23:32.191392620 +0000
++++ qemu-1.6.0+dfsg/target-arm/translate-a64.c	2013-11-05 22:23:32.187392631 +0000
+@@ -373,7 +373,8 @@
+     /* XXX what are these? */
+     if (op0 == 3 && op1 == 3 && op2 == 2 && !crm && crn == 13) {
+         tcg_gen_st_i64(cpu_reg(dest), cpu_env, offsetof(CPUARMState, sr.tpidr_el0));
+-    } else if (op0 == 3 && op1 == 3 && op2 == 0 && crm == 4 && crn == 4) {
++    } else if (op0 == 3 && op1 == 3 && (op2 == 0 || op2 == 1) && crm == 4 && crn == 4) {
++        /* XXX this is wrong! */
+         tcg_gen_st32_i64(cpu_reg(dest), cpu_env,
+             offsetof(CPUARMState, vfp.xregs[ARM_VFP_FPSCR]));
+     } else {
+@@ -394,7 +395,8 @@
+     /* XXX what are these? */
+     if (op0 == 3 && op1 == 3 && op2 == 2 && !crm && crn == 13) {
+         tcg_gen_ld_i64(cpu_reg(dest), cpu_env, offsetof(CPUARMState, sr.tpidr_el0));
+-    } else if (op0 == 3 && op1 == 3 && op2 == 0 && crm == 4 && crn == 4) {
++    } else if (op0 == 3 && op1 == 3 && (op2 == 0 || op2 == 1) && crm == 4 && crn == 4) {
++        /* XXX this is wrong! */
+         tcg_gen_ld32u_i64(cpu_reg(dest), cpu_env,
+             offsetof(CPUARMState, vfp.xregs[ARM_VFP_FPSCR]));
+     } else {

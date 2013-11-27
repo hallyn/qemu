@@ -1,0 +1,63 @@
+From 7090fc7c1000063f3b7697ca622ec326f08dd1d7 Mon Sep 17 00:00:00 2001
+From: Alexander Graf <agraf@suse.de>
+Date: Fri, 8 Feb 2013 04:09:59 +0100
+Subject: [PATCH 044/169] add madd
+
+---
+ target-arm/translate-a64.c | 36 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 36 insertions(+)
+
+Index: qemu-1.6.0+dfsg/target-arm/translate-a64.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/translate-a64.c	2013-11-05 22:23:25.063411073 +0000
++++ qemu-1.6.0+dfsg/target-arm/translate-a64.c	2013-11-05 22:23:25.059411083 +0000
+@@ -1153,6 +1153,34 @@
+     gen_helper_udiv64(cpu_reg(rd), cpu_reg(rn), cpu_reg(rm));
+ }
+ 
++static void handle_madd(DisasContext *s, uint32_t insn)
++{
++    int rd = get_reg(insn);
++    int rn = get_bits(insn, 5, 5);
++    int ra = get_bits(insn, 10, 5);
++    int rm = get_bits(insn, 16, 5);
++    bool sub_op = get_bits(insn, 15, 1);
++    bool is_32bit = !get_bits(insn, 31, 1);
++    TCGv_i64 tcg_tmp;
++
++    if (is_32bit) {
++        unallocated_encoding(s);
++        return;
++    }
++
++    tcg_tmp = tcg_temp_new_i64();
++
++    tcg_gen_mul_i64(tcg_tmp, cpu_reg(rn), cpu_reg(rm));
++
++    if (sub_op) {
++        tcg_gen_sub_i64(cpu_reg(rd), cpu_reg(ra), tcg_tmp);
++    } else {
++        tcg_gen_add_i64(cpu_reg(rd), cpu_reg(ra), tcg_tmp);
++    }
++
++    tcg_temp_free_i64(tcg_tmp);
++}
++
+ static void handle_extr(DisasContext *s, uint32_t insn)
+ {
+     unallocated_encoding(s);
+@@ -1416,6 +1444,14 @@
+         } else {
+             goto unknown_insn;
+         }
++        break;
++    case 0x1b:
++        if ((insn & 0x7fe00000) == 0x1b000000) {
++            handle_madd(s, insn);
++            break;
++        } else {
++            goto unknown_insn;
++        }
+         break;
+     default:
+ unknown_insn:

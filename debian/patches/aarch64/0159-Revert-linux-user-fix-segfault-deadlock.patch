@@ -1,0 +1,57 @@
+From ec1c8b253adbcc5f34a86648c2ee0c7b82d7b88d Mon Sep 17 00:00:00 2001
+From: Michael Matz <matz@suse.de>
+Date: Fri, 10 May 2013 18:11:12 +0200
+Subject: [PATCH 159/169] Revert "linux-user: fix segfault deadlock"
+
+This reverts commit 3f2939ec4eff0e8c8163c977dc58304a681accda.
+We can't simply unlock something nilly-willy.  There simply
+must be no segfault during translation (when that tb_lock
+is held).  Alternatively it must be unlocked in the setjmp
+alternate return path.  Debugging code indicates that
+currently we don't go there while the lock is held.
+---
+ include/exec/spinlock.h | 10 ----------
+ user-exec.c             |  4 ----
+ 2 files changed, 14 deletions(-)
+
+Index: qemu-1.6.0+dfsg/include/exec/spinlock.h
+===================================================================
+--- qemu-1.6.0+dfsg.orig/include/exec/spinlock.h	2013-11-05 22:23:48.411350635 +0000
++++ qemu-1.6.0+dfsg/include/exec/spinlock.h	2013-11-05 22:23:48.411350635 +0000
+@@ -24,12 +24,6 @@
+ #include <pthread.h>
+ #define spin_lock pthread_mutex_lock
+ #define spin_unlock pthread_mutex_unlock
+-static inline void spin_unlock_safe(pthread_mutex_t *lock)
+-{
+-    /* unlocking an unlocked mutex results in undefined behavior */
+-    pthread_mutex_trylock(lock);
+-    pthread_mutex_unlock(lock);
+-}
+ #define spinlock_t pthread_mutex_t
+ #define SPIN_LOCK_UNLOCKED PTHREAD_MUTEX_INITIALIZER
+ 
+@@ -52,8 +46,4 @@
+ {
+ }
+ 
+-static inline void spin_unlock_safe(spinlock_t *lock)
+-{
+-}
+-
+ #endif
+Index: qemu-1.6.0+dfsg/user-exec.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/user-exec.c	2013-11-05 22:23:48.411350635 +0000
++++ qemu-1.6.0+dfsg/user-exec.c	2013-11-05 22:23:48.411350635 +0000
+@@ -89,10 +89,6 @@
+     qemu_printf("qemu: SIGSEGV pc=0x%08lx address=%08lx w=%d oldset=0x%08lx\n",
+                 pc, address, is_write, *(unsigned long *)old_set);
+ #endif
+-
+-    /* Maybe we're still holding the TB fiddling lock? */
+-    spin_unlock_safe(&tcg_ctx.tb_ctx.tb_lock);
+-
+     /* XXX: locking issue */
+     if (is_write && h2g_valid(address)
+         && page_unprotect(h2g(address), pc, puc)) {

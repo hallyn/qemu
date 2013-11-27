@@ -1,0 +1,31 @@
+From 8e2277d128b0f43e963da295f2ee343e3007bfc6 Mon Sep 17 00:00:00 2001
+From: Alexander Graf <agraf@suse.de>
+Date: Tue, 29 May 2012 15:30:01 +0200
+Subject: [PATCH 017/169] linux-user: arm: no tb_flush on reset
+
+When running automoc4 as linux-user guest program, it segfaults right after
+it creates a thread. Bisecting pointed to commit a84fac1426 which introduces
+tb_flush on reset.
+
+So something in our thread creation is broken. But for now, let's revert the
+change to at least get a working build again.
+---
+ target-arm/cpu.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+Index: qemu-1.6.0+dfsg/target-arm/cpu.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/cpu.c	2013-11-05 22:23:19.083426555 +0000
++++ qemu-1.6.0+dfsg/target-arm/cpu.c	2013-11-05 22:23:19.079426566 +0000
+@@ -126,7 +126,11 @@
+      * bake assumptions about into translated code, so we need to
+      * tb_flush().
+      */
++#if !defined(CONFIG_USER_ONLY)
++    /* XXX hack alert! automoc4 segaults after spawning a new thread with this
++           flush enabled */
+     tb_flush(env);
++#endif
+ }
+ 
+ static inline void set_feature(CPUARMState *env, int feature)

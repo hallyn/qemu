@@ -1,0 +1,173 @@
+From 67f986d82bb5d13f7c3830198f7d8231d078695b Mon Sep 17 00:00:00 2001
+From: Alexander Graf <agraf@suse.de>
+Date: Fri, 1 Mar 2013 04:06:03 +0100
+Subject: [PATCH 091/169] fix more fp rounding
+
+---
+ fpu/softfloat.c         | 48 ++++++++++++++++++++++++++++++++++++++++++++++++
+ include/fpu/softfloat.h |  4 ++++
+ target-arm/helper-a64.c |  1 +
+ target-arm/helper.c     | 14 +++++++++-----
+ target-arm/helper.h     |  2 +-
+ 5 files changed, 63 insertions(+), 6 deletions(-)
+
+Index: qemu-1.6.0+dfsg/fpu/softfloat.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/fpu/softfloat.c	2013-11-05 22:23:34.799385869 +0000
++++ qemu-1.6.0+dfsg/fpu/softfloat.c	2013-11-05 22:23:34.791385890 +0000
+@@ -1379,6 +1379,12 @@
+ 
+ }
+ 
++int_fast16_t float32_to_int16( float32 a STATUS_PARAM )
++{
++    /* XXX this is wrong */
++    return float32_to_int16_round_to_zero(a STATUS_VAR);
++}
++
+ /*----------------------------------------------------------------------------
+ | Returns the result of converting the single-precision floating-point value
+ | `a' to the 32-bit two's complement integer format.  The conversion is
+@@ -2763,6 +2769,12 @@
+ 
+ }
+ 
++int_fast16_t float64_to_int16( float64 a STATUS_PARAM )
++{
++    /* XXX this is wrong */
++    return float64_to_int16_round_to_zero(a STATUS_VAR);
++}
++
+ /*----------------------------------------------------------------------------
+ | Returns the result of converting the double-precision floating-point value
+ | `a' to the 32-bit two's complement integer format.  The conversion is
+@@ -6447,6 +6459,24 @@
+     return res;
+ }
+ 
++uint_fast16_t float32_to_uint16( float32 a STATUS_PARAM )
++{
++    int64_t v;
++    uint_fast16_t res;
++
++    v = float32_to_int64(a STATUS_VAR);
++    if (v < 0) {
++        res = 0;
++        float_raise( float_flag_invalid STATUS_VAR);
++    } else if (v > 0xffff) {
++        res = 0xffff;
++        float_raise( float_flag_invalid STATUS_VAR);
++    } else {
++        res = v;
++    }
++    return res;
++}
++
+ uint32 float32_to_uint32_round_to_zero( float32 a STATUS_PARAM )
+ {
+     int64_t v;
+@@ -6497,6 +6527,24 @@
+         float_raise( float_flag_invalid STATUS_VAR);
+     } else {
+         res = v;
++    }
++    return res;
++}
++
++uint_fast16_t float64_to_uint16( float64 a STATUS_PARAM )
++{
++    int64_t v;
++    uint_fast16_t res;
++
++    v = float64_to_int64(a STATUS_VAR);
++    if (v < 0) {
++        res = 0;
++        float_raise( float_flag_invalid STATUS_VAR);
++    } else if (v > 0xffff) {
++        res = 0xffff;
++        float_raise( float_flag_invalid STATUS_VAR);
++    } else {
++        res = v;
+     }
+     return res;
+ }
+Index: qemu-1.6.0+dfsg/include/fpu/softfloat.h
+===================================================================
+--- qemu-1.6.0+dfsg.orig/include/fpu/softfloat.h	2013-11-05 22:23:34.799385869 +0000
++++ qemu-1.6.0+dfsg/include/fpu/softfloat.h	2013-11-05 22:23:34.791385890 +0000
+@@ -268,6 +268,8 @@
+ int_fast16_t float32_to_int16_round_to_zero(float32 STATUS_PARAM);
+ uint_fast16_t float32_to_uint16_round_to_zero(float32 STATUS_PARAM);
+ int32 float32_to_int32( float32 STATUS_PARAM );
++int_fast16_t float32_to_int16( float32 STATUS_PARAM );
++uint_fast16_t float32_to_uint16( float32 STATUS_PARAM );
+ int32 float32_to_int32_round_to_zero( float32 STATUS_PARAM );
+ uint32 float32_to_uint32( float32 STATUS_PARAM );
+ uint32 float32_to_uint32_round_to_zero( float32 STATUS_PARAM );
+@@ -373,6 +375,8 @@
+ uint_fast16_t float64_to_uint16_round_to_zero(float64 STATUS_PARAM);
+ int32 float64_to_int32( float64 STATUS_PARAM );
+ int32 float64_to_int32_round_to_zero( float64 STATUS_PARAM );
++int_fast16_t float64_to_int16( float64 STATUS_PARAM );
++uint_fast16_t float64_to_uint16( float64 STATUS_PARAM );
+ uint32 float64_to_uint32( float64 STATUS_PARAM );
+ uint32 float64_to_uint32_round_to_zero( float64 STATUS_PARAM );
+ int64 float64_to_int64( float64 STATUS_PARAM );
+Index: qemu-1.6.0+dfsg/target-arm/helper-a64.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/helper-a64.c	2013-11-05 22:23:34.799385869 +0000
++++ qemu-1.6.0+dfsg/target-arm/helper-a64.c	2013-11-05 22:23:34.791385890 +0000
+@@ -284,5 +284,6 @@
+         break;
+     /* XXX add fpcr rounding (exact and not exact) */
+     }
++
+     set_float_rounding_mode(rmode, fp_status);
+ }
+Index: qemu-1.6.0+dfsg/target-arm/helper.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/helper.c	2013-11-05 22:23:34.799385869 +0000
++++ qemu-1.6.0+dfsg/target-arm/helper.c	2013-11-05 22:23:34.795385879 +0000
+@@ -3732,20 +3732,24 @@
+         return 0; \
+     } \
+     tmp = float##fsz##_scalbn(x, shift, fpst); \
+-    r = float##fsz##_to_##itype(tmp, fpst); \
++    if (((float_status*)fpstp)->float_rounding_mode == float_round_to_zero) { \
++        r = float##fsz##_to_##itype##_round_to_zero(tmp, fpst); \
++    } else { \
++        r = float##fsz##_to_##itype(tmp, fpst); \
++    } \
+     return r; \
+ }
+ 
+-VFP_CONV_FIX(sh, d, 64, 64, int32, )
++VFP_CONV_FIX(sh, d, 64, 64, int16, )
+ VFP_CONV_FIX(sl, d, 64, 64, int32, )
+ VFP_CONV_FIX(sq, d, 64, 64, int64, )
+-VFP_CONV_FIX(uh, d, 64, 64, uint32, u)
++VFP_CONV_FIX(uh, d, 64, 64, uint16, u)
+ VFP_CONV_FIX(ul, d, 64, 64, uint32, u)
+ VFP_CONV_FIX(uq, d, 64, 64, uint64, u)
+-VFP_CONV_FIX(sh, s, 32, 32, int32, )
++VFP_CONV_FIX(sh, s, 32, 32, int16, )
+ VFP_CONV_FIX(sl, s, 32, 32, int32, )
+ VFP_CONV_FIX(sq, s, 32, 64, int64, )
+-VFP_CONV_FIX(uh, s, 32, 32, uint32, u)
++VFP_CONV_FIX(uh, s, 32, 32, uint16, u)
+ VFP_CONV_FIX(ul, s, 32, 32, uint32, u)
+ VFP_CONV_FIX(uq, s, 32, 64, int64, u)
+ #undef VFP_CONV_FIX
+Index: qemu-1.6.0+dfsg/target-arm/helper.h
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/helper.h	2013-11-05 22:23:34.799385869 +0000
++++ qemu-1.6.0+dfsg/target-arm/helper.h	2013-11-05 22:23:34.795385879 +0000
+@@ -488,7 +488,7 @@
+ DEF_HELPER_FLAGS_2(rintd, TCG_CALL_NO_RWG_SE, f64, f64, ptr)
+ DEF_HELPER_FLAGS_2(rints, TCG_CALL_NO_RWG_SE, f32, f32, ptr)
+ DEF_HELPER_1(tb_flush, void, env)
+-DEF_HELPER_FLAGS_2(set_rmode, TCG_CALL_NO_RWG_SE, void, i32, ptr)
++DEF_HELPER_2(set_rmode, void, i32, ptr)
+ 
+ 
+ 

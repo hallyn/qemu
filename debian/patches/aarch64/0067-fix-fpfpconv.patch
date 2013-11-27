@@ -1,0 +1,22 @@
+From a334f74bc3a53a69c9ee047055b713c5da972f6e Mon Sep 17 00:00:00 2001
+From: Alexander Graf <agraf@suse.de>
+Date: Tue, 19 Feb 2013 23:59:14 +0100
+Subject: [PATCH 067/169] fix fpfpconv
+
+---
+ target-arm/translate-a64.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+Index: qemu-1.6.0+dfsg/target-arm/translate-a64.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/translate-a64.c	2013-11-05 22:23:30.015398253 +0000
++++ qemu-1.6.0+dfsg/target-arm/translate-a64.c	2013-11-05 22:23:30.011398263 +0000
+@@ -1611,7 +1611,7 @@
+         clear_fpreg(fp_reg);
+     }
+ 
+-    if (is_32bit) {
++    if (is_32bit && !direction) {
+         tcg_tmp = tcg_temp_new_i64();
+         if (is_signed) {
+             tcg_gen_ext32s_i64(tcg_tmp, tcg_int);

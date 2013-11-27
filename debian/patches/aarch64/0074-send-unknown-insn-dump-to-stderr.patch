@@ -1,0 +1,22 @@
+From 209b5c5242400993ed1f497de0a759f44f67a5b0 Mon Sep 17 00:00:00 2001
+From: Alexander Graf <agraf@suse.de>
+Date: Thu, 21 Feb 2013 01:36:33 +0100
+Subject: [PATCH 074/169] send unknown insn dump to stderr
+
+---
+ target-arm/translate-a64.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+Index: qemu-1.6.0+dfsg/target-arm/translate-a64.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/translate-a64.c	2013-11-05 22:23:31.411394640 +0000
++++ qemu-1.6.0+dfsg/target-arm/translate-a64.c	2013-11-05 22:23:31.407394651 +0000
+@@ -2514,7 +2514,7 @@
+         break;
+     default:
+ unknown_insn:
+-        printf("unknown insn: %08x\n", insn);
++        fprintf(stderr, "unknown insn: %08x\n", insn);
+         unallocated_encoding(s);
+         break;
+     }

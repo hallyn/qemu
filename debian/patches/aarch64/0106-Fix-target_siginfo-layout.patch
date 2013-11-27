@@ -1,0 +1,33 @@
+From 59598860d426e7eb64e17da3b4c58d3992394c0e Mon Sep 17 00:00:00 2001
+From: Michael Matz <matz@suse.de>
+Date: Mon, 18 Mar 2013 18:06:34 +0100
+Subject: [PATCH 106/169] Fix target_siginfo layout.
+
+aarch64 uses a longer preamble in siginfo.  That moved ucontext from
+rt_sigframe at the wrong place, leading to a mismatch of where it
+was expected by the unwinder, and where qemu put it, leading to
+and endless loop when searching for the SIMD magic.
+---
+ linux-user/syscall_defs.h | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+Index: qemu-1.6.0+dfsg/linux-user/syscall_defs.h
+===================================================================
+--- qemu-1.6.0+dfsg.orig/linux-user/syscall_defs.h	2013-11-05 22:23:37.775378165 +0000
++++ qemu-1.6.0+dfsg/linux-user/syscall_defs.h	2013-11-05 22:23:37.775378165 +0000
+@@ -616,8 +616,14 @@
+ #endif
+ #endif
+ 
++#ifdef TARGET_ARM64
++#define TARGET_SI_PREAMBLE_SIZE 4
++#endif
++#ifndef TARGET_SI_PREAMBLE_SIZE
++#define TARGET_SI_PREAMBLE_SIZE 3
++#endif
+ #define TARGET_SI_MAX_SIZE	128
+-#define TARGET_SI_PAD_SIZE	((TARGET_SI_MAX_SIZE/sizeof(int)) - 3)
++#define TARGET_SI_PAD_SIZE	((TARGET_SI_MAX_SIZE/sizeof(int)) - TARGET_SI_PREAMBLE_SIZE)
+ 
+ typedef struct target_siginfo {
+ #ifdef TARGET_MIPS

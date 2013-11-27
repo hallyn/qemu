@@ -1,0 +1,25 @@
+From 5e87d2a29187ab7b08b5539b8831024021dc1973 Mon Sep 17 00:00:00 2001
+From: Alexander Graf <agraf@suse.de>
+Date: Fri, 22 Feb 2013 03:48:03 +0100
+Subject: [PATCH 079/169] fix up pc on segfaults correctly
+
+---
+ target-arm/translate.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+Index: qemu-1.6.0+dfsg/target-arm/translate.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/translate.c	2013-11-05 22:23:32.383392124 +0000
++++ qemu-1.6.0+dfsg/target-arm/translate.c	2013-11-05 22:23:32.379392135 +0000
+@@ -10276,6 +10276,10 @@
+ 
+ void restore_state_to_opc(CPUARMState *env, TranslationBlock *tb, int pc_pos)
+ {
+-    env->regs[15] = tcg_ctx.gen_opc_pc[pc_pos];
++    if (is_a64(env)) {
++        env->pc = tcg_ctx.gen_opc_pc[pc_pos];
++    } else {
++        env->regs[15] = tcg_ctx.gen_opc_pc[pc_pos];
++    }
+     env->condexec_bits = gen_opc_condexec_bits[pc_pos];
+ }

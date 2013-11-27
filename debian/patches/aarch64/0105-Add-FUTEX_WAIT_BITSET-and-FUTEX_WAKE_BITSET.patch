@@ -1,0 +1,40 @@
+From b7799880d95b1c5f8db1cfbb0215253e9495fb73 Mon Sep 17 00:00:00 2001
+From: Michael Matz <matz@suse.de>
+Date: Mon, 18 Mar 2013 18:05:30 +0100
+Subject: [PATCH 105/169] Add FUTEX_WAIT_BITSET and FUTEX_WAKE_BITSET.
+
+Modern glibc need these futex ops.  Also improve stracing
+when the op contains the CLOCK_REALTIME flag.
+---
+ linux-user/syscall.c | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)
+
+Index: qemu-1.6.0+dfsg/linux-user/syscall.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/linux-user/syscall.c	2013-11-05 22:23:37.583378662 +0000
++++ qemu-1.6.0+dfsg/linux-user/syscall.c	2013-11-05 22:23:37.579378673 +0000
+@@ -4888,7 +4888,7 @@
+         return get_errno(sys_futex(g2h(uaddr), op, tswap32(val),
+                          pts, NULL, val3));
+     case FUTEX_WAKE:
+-        return get_errno(sys_futex(g2h(uaddr), op, val, NULL, NULL, 0));
++        return get_errno(sys_futex(g2h(uaddr), op, tswap32(val), NULL, NULL, 0));
+     case FUTEX_FD:
+         return get_errno(sys_futex(g2h(uaddr), op, val, NULL, NULL, 0));
+     case FUTEX_REQUEUE:
+@@ -4905,6 +4905,15 @@
+                                    (base_op == FUTEX_CMP_REQUEUE
+                                     ? tswap32(val3)
+                                     : val3)));
++    case FUTEX_WAKE_BITSET:
++        if (timeout) {
++            pts = &ts;
++            target_to_host_timespec(pts, timeout);
++        } else {
++            pts = NULL;
++        }
++	return get_errno(sys_futex(g2h(uaddr), op, tswap32(val),
++				   pts, NULL, tswap32(val3)));
+     default:
+         return -TARGET_ENOSYS;
+     }

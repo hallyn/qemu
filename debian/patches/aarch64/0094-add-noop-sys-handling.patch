@@ -1,0 +1,36 @@
+From 479e182b54c9d8fffe2a57dbc82773b255512765 Mon Sep 17 00:00:00 2001
+From: Alexander Graf <agraf@suse.de>
+Date: Fri, 1 Mar 2013 18:03:28 +0100
+Subject: [PATCH 094/169] add noop sys handling
+
+---
+ target-arm/translate-a64.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+Index: qemu-1.6.0+dfsg/target-arm/translate-a64.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/translate-a64.c	2013-11-05 22:23:35.423384254 +0000
++++ qemu-1.6.0+dfsg/target-arm/translate-a64.c	2013-11-05 22:23:35.419384265 +0000
+@@ -412,6 +412,12 @@
+     }
+ }
+ 
++static void handle_sys(DisasContext *s, uint32_t insn)
++{
++    /* XXX simply ignore sys for now, need to start worrying when we implement
++           system emulation */
++}
++
+ /* PC relative address calculation */
+ static void handle_adr(DisasContext *s, uint32_t insn)
+ {
+@@ -2689,6 +2695,9 @@
+         } else if ((insn & 0xfffff09f) == 0xd503309f) {
+             /* barrier instructions */
+             break;
++        } else if (get_bits(insn, 19, 13) == 0x1aa1) {
++            handle_sys(s, insn);
++            break;
+         } else {
+             goto unknown_insn;
+         }

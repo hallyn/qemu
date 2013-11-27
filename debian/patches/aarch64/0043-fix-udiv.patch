@@ -1,0 +1,22 @@
+From cca334a8d7a6263fa674db7723562f96e6944d90 Mon Sep 17 00:00:00 2001
+From: Alexander Graf <agraf@suse.de>
+Date: Fri, 8 Feb 2013 03:55:14 +0100
+Subject: [PATCH 043/169] fix udiv
+
+---
+ target-arm/translate-a64.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+Index: qemu-1.6.0+dfsg/target-arm/translate-a64.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/target-arm/translate-a64.c	2013-11-05 22:23:24.871411570 +0000
++++ qemu-1.6.0+dfsg/target-arm/translate-a64.c	2013-11-05 22:23:24.867411581 +0000
+@@ -1138,7 +1138,7 @@
+     int rn = get_bits(insn, 5, 5);
+     int rm = get_bits(insn, 16, 5);
+     bool is_signed = get_bits(insn, 10, 1);
+-    bool is_32bit = get_bits(insn, 31, 1);
++    bool is_32bit = !get_bits(insn, 31, 1);
+ 
+     if (is_signed) {
+         unallocated_encoding(s);

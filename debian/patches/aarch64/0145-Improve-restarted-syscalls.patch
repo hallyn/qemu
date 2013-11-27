@@ -1,0 +1,49 @@
+From c26c8cc19b069e3617e30cb3c8df7b861ac60c2e Mon Sep 17 00:00:00 2001
+From: Michael Matz <matz@suse.de>
+Date: Sun, 7 Apr 2013 03:46:40 +0200
+Subject: [PATCH 145/169] Improve restarted syscalls
+
+This manually adds syscall restarting for ARM64, like it's done
+for ARM.
+---
+ linux-user/main.c | 27 ++++++++++++++++++---------
+ 1 file changed, 18 insertions(+), 9 deletions(-)
+
+Index: qemu-1.6.0+dfsg/linux-user/main.c
+===================================================================
+--- qemu-1.6.0+dfsg.orig/linux-user/main.c	2013-11-05 22:23:45.603357903 +0000
++++ qemu-1.6.0+dfsg/linux-user/main.c	2013-11-05 22:23:45.599357914 +0000
+@@ -880,15 +880,24 @@
+         case EXCP_BKPT:
+             {
+ #ifdef TARGET_ARM64
+-                env->xregs[0] = do_syscall(env,
+-                                           env->xregs[8],
+-                                           env->xregs[0],
+-                                           env->xregs[1],
+-                                           env->xregs[2],
+-                                           env->xregs[3],
+-                                           env->xregs[4],
+-                                           env->xregs[5],
+-                                           0, 0);
++	        TaskState *ts = ((CPUArchState*)env)->opaque;
++	        target_ulong r;
++                r = do_syscall(env,
++			       env->xregs[8],
++			       env->xregs[0],
++			       env->xregs[1],
++			       env->xregs[2],
++			       env->xregs[3],
++			       env->xregs[4],
++			       env->xregs[5],
++			       0, 0);
++		if ((r == -EINTR) && ts->signal_restart &&
++		    syscall_restartable(env->xregs[0])) {
++		    env->pc -= 4;
++		} else {
++		    env->xregs[0] = r;
++		}
++		ts->signal_restart = 0;
+ #else
+ 
+                 env->eabi = 1;
