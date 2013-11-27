@@ -7,7 +7,6 @@ linaro-patches/0001-blizzard-fix-for-non-32bpp-host-displays.patch
 linaro-patches/0002-hw-sd-Expose-sd_reset-as-public-function.patch
 linaro-patches/0003-sd-Allow-sd_init-callers-to-specify-whether-card-is-.patch
 linaro-patches/0004-hw-sd.c-Add-MMC-emulation-support.patch
-linaro-patches/0005-Support-multiple-simultaneous-keyboard-event-handler.patch
 linaro-patches/0006-omap.h-Add-OMAP3-interrupt-and-DMA-defines.patch
 linaro-patches/0007-hw-omap_dma.c-Support-more-than-64-channels-of-DMA.patch
 linaro-patches/0008-hw-omap_dma.c-Add-support-for-OMAP3-specific-behavio.patch
