@@ -1,3 +1,53 @@
+qemu (1.7.0+dfsg-2ubuntu1) UNRELEASED; urgency=low
+
+  * Merge 1.7.0+dfsg-2 from debian experimental.  Remaining changes:
+    - debian/control
+      * update maintainer
+      * remove libiscsi, usb-redir, vde, vnc-jpeg, and libssh2-1-dev
+        from build-deps
+      * enable rbd
+      * add qemu-system and qemu-common B/R to qemu-keymaps
+      * add D:udev, R:qemu, R:qemu-common and B:qemu-common to
+        qemu-system-common
+      * qemu-system-arm, qemu-system-ppc, qemu-system-sparc:
+        - add qemu-common, qemu-kvm, kvm to B/R
+        - remove openbios-sparc from qemu-system-sparc D
+        - drop openbios-ppc and openhackware Depends to Suggests (for now)
+      * qemu-system-x86:
+        - add qemu-common to Breaks/Replaces.
+        - add cpu-checker to Recommends.
+      * qemu-user: add B/R:qemu-kvm
+      * qemu-kvm:
+        - add armhf armel powerpc sparc to Architecture
+        - C/R/P: qemu-kvm-spice
+      * add qemu-common package
+      * drop qemu-slof which is not packaged in ubuntu
+    - add qemu-system-common.links for tap ifup/down scripts and OVMF link.
+    - qemu-system-x86.links:
+      * remove pxe rom links which are in kvm-ipxe
+    - debian/rules
+      * add kvm-spice symlink to qemu-kvm
+      * call dh_installmodules for qemu-system-x86
+      * update dh_installinit to install upstart script
+      * run dh_installman (Closes: #709241) (cherrypicked from 1.5.0+dfsg-2)
+    - Add qemu-utils.links for kvm-* symlinks.
+    - Add qemu-system-x86.qemu-kvm.upstart and .default
+    - Add qemu-system-x86.modprobe to set nesting=1
+    - Add qemu-system-common.preinst to add kvm group
+    - qemu-system-common.postinst: remove bad group acl if there, then have
+      udev relabel /dev/kvm.
+    - New linaro patches from qemu-linaro rebasing branch
+    - Dropped patches:
+      * linaro patchset
+      * mach-virt patchset
+    - Kept patches:
+      * expose_vms_qemu64cpu.patch
+      * fix-pci-add
+  * qemu-system-common.install: add debian/tmp/usr/lib to install the
+    qemu-bridge-helper
+
+ -- Serge Hallyn <serge.hallyn@ubuntu.com>  Sat, 07 Dec 2013 06:08:11 +0000
+
 qemu (1.7.0+dfsg-2) unstable; urgency=low
 
   * switch from vgabios to seavgabios
