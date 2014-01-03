@@ -5,6 +5,7 @@ qemu (1.7.0+dfsg-2ubuntu5) trusty; urgency=medium
   * Add patchset from git://git.linaro.org/qemu/qemu-linaro.git#rebasing
   * Refresh debian/patches/hw_arm_add_virt_platform.patch against context
     churn caused by linaro patchset.
+  * debian/rules: enable parallel builds.
 
  -- Serge Hallyn <serge.hallyn@ubuntu.com>  Fri, 03 Jan 2014 10:53:17 -0600
 
