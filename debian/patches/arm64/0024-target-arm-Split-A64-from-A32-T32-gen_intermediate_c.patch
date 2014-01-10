@@ -29,10 +29,10 @@ Reviewed-by: Richard Henderson <rth@twiddle.net>
  target-arm/translate.h     |  20 ++++-
  3 files changed, 246 insertions(+), 45 deletions(-)
 
-diff --git a/target-arm/translate-a64.c b/target-arm/translate-a64.c
-index 932b601..a713137 100644
---- a/target-arm/translate-a64.c
-+++ b/target-arm/translate-a64.c
+Index: qemu/target-arm/translate-a64.c
+===================================================================
+--- qemu.orig/target-arm/translate-a64.c	2014-01-10 12:08:03.444166815 -0600
++++ qemu/target-arm/translate-a64.c	2014-01-10 12:08:03.436166815 -0600
 @@ -28,6 +28,8 @@
  #include "translate.h"
  #include "qemu/host-utils.h"
@@ -42,7 +42,7 @@ index 932b601..a713137 100644
  #include "helper.h"
  #define GEN_HELPER 1
  #include "helper.h"
-@@ -106,7 +108,42 @@ static void gen_exception_insn(DisasContext *s, int offset, int excp)
+@@ -106,7 +108,42 @@ static void gen_exception_insn(DisasCont
  {
      gen_a64_set_pc_im(s->pc - offset);
      gen_exception(excp);
@@ -86,7 +86,7 @@ index 932b601..a713137 100644
  }
  
  static void real_unallocated_encoding(DisasContext *s)
-@@ -120,7 +157,7 @@ static void real_unallocated_encoding(DisasContext *s)
+@@ -120,7 +157,7 @@ static void real_unallocated_encoding(Di
      real_unallocated_encoding(s); \
      } while (0)
  
@@ -95,7 +95,7 @@ index 932b601..a713137 100644
  {
      uint32_t insn;
  
-@@ -133,9 +170,171 @@ void disas_a64_insn(CPUARMState *env, DisasContext *s)
+@@ -133,9 +170,171 @@ void disas_a64_insn(CPUARMState *env, Di
          unallocated_encoding(s);
          break;
      }
@@ -270,23 +270,36 @@ index 932b601..a713137 100644
 +        tb->icount = num_insns;
      }
  }
-diff --git a/target-arm/translate.c b/target-arm/translate.c
-index 8c479ff..3a1387e 100644
---- a/target-arm/translate.c
-+++ b/target-arm/translate.c
-@@ -56,11 +56,6 @@ static uint32_t gen_opc_condexec_bits[OPC_BUF_SIZE];
- #define IS_USER(s) (s->user)
- #endif
+Index: qemu/target-arm/translate.c
+===================================================================
+--- qemu.orig/target-arm/translate.c	2014-01-10 12:07:58.348166701 -0600
++++ qemu/target-arm/translate.c	2014-01-10 12:14:18.576175248 -0600
+@@ -50,18 +50,18 @@
+ #include "translate.h"
+ static uint32_t gen_opc_condexec_bits[OPC_BUF_SIZE];
  
--/* These instructions trap after executing, so defer them until after the
--   conditional execution state has been updated.  */
--#define DISAS_WFI 4
--#define DISAS_SWI 5
+-#if defined(CONFIG_USER_ONLY)
+-#define IS_USER(s) 1
+-#else
+-#define IS_USER(s) (s->user)
+-#endif
 -
+ /* These instructions trap after executing, so defer them until after the
+    conditional execution state has been updated.  */
+ #define DISAS_WFI 4
+ #define DISAS_SWI 5
+ #define DISAS_SMC 6
+ 
++#if defined(CONFIG_USER_ONLY)
++#define IS_USER(s) 1
++#else
++#define IS_USER(s) (s->user)
++#endif
++
  TCGv_ptr cpu_env;
  /* We reuse the same 64-bit temporaries for efficiency.  */
  static TCGv_i64 cpu_V0, cpu_V1, cpu_M0;
-@@ -900,11 +895,7 @@ DO_GEN_ST(32, MO_TEUL)
+@@ -907,11 +907,7 @@ static inline void gen_smc(CPUARMState *
  
  static inline void gen_set_pc_im(DisasContext *s, target_ulong val)
  {
@@ -299,7 +312,7 @@ index 8c479ff..3a1387e 100644
  }
  
  /* Force a TB lookup after an instruction that changes the CPU state.  */
-@@ -10217,6 +10208,15 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
+@@ -10235,6 +10231,15 @@ static inline void gen_intermediate_code
      int max_insns;
  
      /* generate intermediate code */
@@ -315,7 +328,7 @@ index 8c479ff..3a1387e 100644
      pc_start = tb->pc;
  
      dc->tb = tb;
-@@ -10228,31 +10228,18 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
+@@ -10246,31 +10251,18 @@ static inline void gen_intermediate_code
      dc->singlestep_enabled = cs->singlestep_enabled;
      dc->condjmp = 0;
  
@@ -325,15 +338,9 @@ index 8c479ff..3a1387e 100644
 -        dc->bswap_code = 0;
 -        dc->condexec_mask = 0;
 -        dc->condexec_cond = 0;
-+    dc->aarch64 = 0;
-+    dc->thumb = ARM_TBFLAG_THUMB(tb->flags);
-+    dc->bswap_code = ARM_TBFLAG_BSWAP_CODE(tb->flags);
-+    dc->condexec_mask = (ARM_TBFLAG_CONDEXEC(tb->flags) & 0xf) << 1;
-+    dc->condexec_cond = ARM_TBFLAG_CONDEXEC(tb->flags) >> 4;
- #if !defined(CONFIG_USER_ONLY)
+-#if !defined(CONFIG_USER_ONLY)
 -        dc->user = 0;
-+    dc->user = (ARM_TBFLAG_PRIV(tb->flags) == 0);
- #endif
+-#endif
 -        dc->vfp_enabled = 0;
 -        dc->vec_len = 0;
 -        dc->vec_stride = 0;
@@ -343,9 +350,15 @@ index 8c479ff..3a1387e 100644
 -        dc->bswap_code = ARM_TBFLAG_BSWAP_CODE(tb->flags);
 -        dc->condexec_mask = (ARM_TBFLAG_CONDEXEC(tb->flags) & 0xf) << 1;
 -        dc->condexec_cond = ARM_TBFLAG_CONDEXEC(tb->flags) >> 4;
--#if !defined(CONFIG_USER_ONLY)
++    dc->aarch64 = 0;
++    dc->thumb = ARM_TBFLAG_THUMB(tb->flags);
++    dc->bswap_code = ARM_TBFLAG_BSWAP_CODE(tb->flags);
++    dc->condexec_mask = (ARM_TBFLAG_CONDEXEC(tb->flags) & 0xf) << 1;
++    dc->condexec_cond = ARM_TBFLAG_CONDEXEC(tb->flags) >> 4;
+ #if !defined(CONFIG_USER_ONLY)
 -        dc->user = (ARM_TBFLAG_PRIV(tb->flags) == 0);
--#endif
++    dc->user = (ARM_TBFLAG_PRIV(tb->flags) == 0);
+ #endif
 -        dc->vfp_enabled = ARM_TBFLAG_VFPEN(tb->flags);
 -        dc->vec_len = ARM_TBFLAG_VECLEN(tb->flags);
 -        dc->vec_stride = ARM_TBFLAG_VECSTRIDE(tb->flags);
@@ -357,7 +370,7 @@ index 8c479ff..3a1387e 100644
      cpu_F0s = tcg_temp_new_i32();
      cpu_F1s = tcg_temp_new_i32();
      cpu_F0d = tcg_temp_new_i64();
-@@ -10314,7 +10301,7 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
+@@ -10332,7 +10324,7 @@ static inline void gen_intermediate_code
      do {
  #ifdef CONFIG_USER_ONLY
          /* Intercept jump to the magic kernel page.  */
@@ -366,7 +379,7 @@ index 8c479ff..3a1387e 100644
              /* We always get here via a jump, so know we are not in a
                 conditional execution block.  */
              gen_exception(EXCP_KERNEL_TRAP);
-@@ -10362,9 +10349,7 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
+@@ -10380,9 +10372,7 @@ static inline void gen_intermediate_code
              tcg_gen_debug_insn_start(dc->pc);
          }
  
@@ -377,7 +390,7 @@ index 8c479ff..3a1387e 100644
              disas_thumb_insn(env, dc);
              if (dc->condexec_mask) {
                  dc->condexec_cond = (dc->condexec_cond & 0xe)
-@@ -10559,8 +10544,9 @@ void restore_state_to_opc(CPUARMState *env, TranslationBlock *tb, int pc_pos)
+@@ -10584,8 +10574,9 @@ void restore_state_to_opc(CPUARMState *e
  {
      if (is_a64(env)) {
          env->pc = tcg_ctx.gen_opc_pc[pc_pos];
@@ -388,10 +401,10 @@ index 8c479ff..3a1387e 100644
      }
 -    env->condexec_bits = gen_opc_condexec_bits[pc_pos];
  }
-diff --git a/target-arm/translate.h b/target-arm/translate.h
-index 67c7760..8789181 100644
---- a/target-arm/translate.h
-+++ b/target-arm/translate.h
+Index: qemu/target-arm/translate.h
+===================================================================
+--- qemu.orig/target-arm/translate.h	2014-01-10 12:08:03.444166815 -0600
++++ qemu/target-arm/translate.h	2014-01-10 12:08:03.440166815 -0600
 @@ -28,16 +28,32 @@ typedef struct DisasContext {
  
  extern TCGv_ptr cpu_env;
@@ -427,6 +440,3 @@ index 67c7760..8789181 100644
  {
  }
  
--- 
-1.8.5.2
-
