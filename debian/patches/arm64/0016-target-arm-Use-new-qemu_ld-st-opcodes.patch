@@ -13,11 +13,11 @@ Signed-off-by: Peter Maydell <peter.maydell@linaro.org>
  target-arm/translate.c | 56 ++++++++++++++++++++++----------------------------
  1 file changed, 25 insertions(+), 31 deletions(-)
 
-diff --git a/target-arm/translate.c b/target-arm/translate.c
-index 73ed266..8c479ff 100644
---- a/target-arm/translate.c
-+++ b/target-arm/translate.c
-@@ -825,63 +825,57 @@ static inline void store_reg_from_load(CPUARMState *env, DisasContext *s,
+Index: qemu.hallyn/target-arm/translate.c
+===================================================================
+--- qemu.hallyn.orig/target-arm/translate.c	2014-01-15 11:01:24.270266109 -0700
++++ qemu.hallyn/target-arm/translate.c	2014-01-15 11:01:24.270266109 -0700
+@@ -826,63 +826,57 @@
   * extended if we're a 64 bit core) and  data is also
   * 32 bits unless specifically doing a 64 bit access.
   * These functions work like tcg_gen_qemu_{ld,st}* except
@@ -97,7 +97,7 @@ index 73ed266..8c479ff 100644
      tcg_temp_free(addr64);
  }
  
-@@ -889,20 +883,20 @@ static inline void gen_aa32_st64(TCGv_i64 val, TCGv_i32 addr, int index)
+@@ -890,20 +884,20 @@
  {
      TCGv addr64 = tcg_temp_new();
      tcg_gen_extu_i32_i64(addr64, addr);
@@ -125,8 +125,5 @@ index 73ed266..8c479ff 100644
 +DO_GEN_ST(16, MO_TEUW)
 +DO_GEN_ST(32, MO_TEUL)
  
- static inline void gen_set_pc_im(DisasContext *s, target_ulong val)
+ static inline void gen_smc(CPUARMState *env, DisasContext *s)
  {
--- 
-1.8.5.2
-
