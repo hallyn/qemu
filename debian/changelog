@@ -1,4 +1,4 @@
-qemu (1.7.0+dfsg-2ubuntu6ppa1) trusty; urgency=medium
+qemu (1.7.0+dfsg-2ubuntu6) trusty; urgency=medium
 
   [ Serge Hallyn ]
   * add arm64 patchset from upstream.  The three arm virt patches previously
