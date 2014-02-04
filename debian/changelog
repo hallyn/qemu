@@ -1,3 +1,32 @@
+qemu (1.7.0+dfsg-3ubuntu1~ppa1) trusty; urgency=medium
+
+  * Merge 1.7.0+dfsg-3 from debian.  Remaining changes:
+    - debian/patches/ubuntu:
+      * expose-vmx_qemu64cpu.patch
+      * linaro (omap3) and arm64 patches
+      * ubuntu/target-ppc-add-stubs-for-kvm-breakpoints: fix FTBFS
+        on ppc
+      * ubuntu/CVE-2013-4377.patch: fix denial of service via virtio
+    - debian/qemu-system-x86.modprobe: set kvm_intel nested=1 options
+    - debian/control:
+      * add arm64 to Architectures
+      * add qemu-common and qemu-system-aarch64 packages
+    - debian/qemu-system-common.install: add debian/tmp/usr/lib
+    - debian/qemu-system-common.preinst: add kvm group
+    - debian/qemu-system-common.postinst: remove acl placed by udev,
+      and add udevadm trigger.
+    - qemu-system-x86.links: add eepro100.rom
+    - add qemu-system-x86.qemu-kvm.upstart and .default
+    - qemu-user-static.postinst-in: remove arm64 binfmt
+    - debian/rules:
+      * allow parallel build
+      * add aarch64 to system_targets and sys_systems
+      * add qemu-kvm-spice links
+      * add OVMF.fd link
+      * install qemu-system-x86.modprobe
+
+ -- Serge Hallyn <serge.hallyn@ubuntu.com>  Tue, 04 Feb 2014 12:13:08 -0600
+
 qemu (1.7.0+dfsg-3) unstable; urgency=low
 
   * qemu-kvm: fix versions for Breaks/Replaces/Depends on qemu-system-x86
