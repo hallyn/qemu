@@ -1,7 +1,7 @@
 #!/usr/bin/make -f
 
 VENDOR := debian
-DEB_VENDOR := $(shell dpkg-vendor --vendor)
+DEB_VENDOR := $(shell dpkg-vendor --query vendor)
 ifeq ($(DEB_VENDOR),Ubuntu)
 VENDOR := ubuntu
 DEB_BUILD_PARALLEL = yes
