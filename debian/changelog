@@ -22,8 +22,8 @@ qemu (1.7.0+dfsg-3ubuntu1~ppa1) trusty; urgency=medium
       * allow parallel build
       * add aarch64 to system_targets and sys_systems
       * add qemu-kvm-spice links
-      * add OVMF.fd link
       * install qemu-system-x86.modprobe
+    - add debian/qemu-system-common.links for OVMF.fd link
 
  -- Serge Hallyn <serge.hallyn@ubuntu.com>  Tue, 04 Feb 2014 12:13:08 -0600
 

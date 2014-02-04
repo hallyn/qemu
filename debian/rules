@@ -221,7 +221,6 @@ ifeq ($(DEB_VENDOR),Ubuntu)
 	mkdir -p debian/qemu-kvm/usr/bin
 	ln -s kvm debian/qemu-kvm/usr/bin/kvm-spice
 	ln -s qemu-system-x86_64 debian/qemu-kvm/usr/bin/qemu-system-x86_64-spice
-	ln -s ../ovmf/OVMF.fd debian/qemu-system-common/usr/share/qemu/OVMF.fd
 	dh_installmodules -pqemu-system-x86
 endif
 endif
