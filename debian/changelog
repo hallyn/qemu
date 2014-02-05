@@ -24,6 +24,7 @@ qemu (1.7.0+dfsg-3ubuntu1~ppa1) trusty; urgency=medium
       * add qemu-kvm-spice links
       * install qemu-system-x86.modprobe
     - add debian/qemu-system-common.links for OVMF.fd link
+  * Remove kvm-img, kvm-nbd, kvm-ifup and kvm-ifdown symlinks.
 
  -- Serge Hallyn <serge.hallyn@ubuntu.com>  Tue, 04 Feb 2014 12:13:08 -0600
 
