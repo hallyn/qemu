@@ -2,7 +2,7 @@
 
 set -e
 
-if [ dpkg-vendor --is ubuntu ]; then
+if dpkg-vendor --is ubuntu; then
 case "$1" in
 install|upgrade)
     # Add the kvm group unless it's already there
