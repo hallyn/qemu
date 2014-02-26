@@ -1,0 +1,9 @@
+02_kfreebsd.patch
+retry-pxe-after-efi.patch
+use-fixed-data-path.patch
+fix-smb-security-share.patch
+move-ncalrpc-dir-to-tmp.patch
+slirp-smb-redirect-port-445-too.patch
+ubuntu/expose-vmx_qemu64cpu.patch
+ubuntu/target-ppc-add-stubs-for-kvm-breakpoints
+ubuntu/linux-user-Implement-sendmmsg-syscall.patch
