@@ -10,8 +10,8 @@ Last-Update: 2014-02-24
 
 Index: qemu-2.0~git-20140225.aa0d1f4/linux-user/syscall.c
 ===================================================================
---- qemu-2.0~git-20140225.aa0d1f4.orig/linux-user/syscall.c	2014-02-25 22:31:10.707006519 -0600
-+++ qemu-2.0~git-20140225.aa0d1f4/linux-user/syscall.c	2014-02-25 22:31:10.699006519 -0600
+--- qemu-2.0~git-20140225.aa0d1f4.orig/linux-user/syscall.c	2014-02-25 22:37:38.778999948 -0600
++++ qemu-2.0~git-20140225.aa0d1f4/linux-user/syscall.c	2014-02-25 22:37:38.770999948 -0600
 @@ -1979,6 +1979,30 @@ out2:
      return ret;
  }
@@ -57,8 +57,8 @@ Index: qemu-2.0~git-20140225.aa0d1f4/linux-user/syscall.c
          ret = do_sendto(arg1, arg2, arg3, arg4, arg5, arg6);
 Index: qemu-2.0~git-20140225.aa0d1f4/linux-user/syscall_defs.h
 ===================================================================
---- qemu-2.0~git-20140225.aa0d1f4.orig/linux-user/syscall_defs.h	2014-02-25 22:31:10.707006519 -0600
-+++ qemu-2.0~git-20140225.aa0d1f4/linux-user/syscall_defs.h	2014-02-25 22:31:10.703006519 -0600
+--- qemu-2.0~git-20140225.aa0d1f4.orig/linux-user/syscall_defs.h	2014-02-25 22:37:38.778999948 -0600
++++ qemu-2.0~git-20140225.aa0d1f4/linux-user/syscall_defs.h	2014-02-25 22:37:38.770999948 -0600
 @@ -239,6 +239,10 @@ __target_cmsg_nxthdr (struct target_msgh
    return __cmsg;
  }

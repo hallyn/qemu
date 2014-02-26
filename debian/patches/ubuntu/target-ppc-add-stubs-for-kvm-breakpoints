@@ -26,12 +26,12 @@ Date:   Wed Dec 11 14:15:34 2013 +0100
     Reviewed-by: Alexander Graf <agraf@suse.de>
     Signed-off-by: Alexander Graf <agraf@suse.de>
 
-diff --git a/target-ppc/kvm.c b/target-ppc/kvm.c
-index b77ce5e..29a8ded 100644
---- a/target-ppc/kvm.c
-+++ b/target-ppc/kvm.c
-@@ -1902,3 +1902,31 @@ int kvm_arch_on_sigbus(int code, void *addr)
- void kvm_arch_init_irq_routing(KVMState *s)
+Index: qemu-2.0~git-20140225.aa0d1f4/target-ppc/kvm.c
+===================================================================
+--- qemu-2.0~git-20140225.aa0d1f4.orig/target-ppc/kvm.c	2014-02-25 22:37:35.978999996 -0600
++++ qemu-2.0~git-20140225.aa0d1f4/target-ppc/kvm.c	2014-02-25 22:37:35.970999996 -0600
+@@ -1934,3 +1934,31 @@ void kvm_arch_remove_all_hw_breakpoints(
+ void kvm_arch_update_guest_debug(CPUState *cpu, struct kvm_guest_debug *dbg)
  {
  }
 +
