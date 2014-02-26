@@ -1,3 +1,9 @@
+qemu (2.0~git-20140225.aa0d1f4-0ubuntu2) trusty; urgency=medium
+
+  * add link for /usr/share/qemu/bios-256k.bin
+
+ -- Serge Hallyn <serge.hallyn@ubuntu.com>  Wed, 26 Feb 2014 11:59:11 -0600
+
 qemu (2.0~git-20140225.aa0d1f4-0ubuntu1) trusty; urgency=medium
 
   * Remove all linaro patches.
