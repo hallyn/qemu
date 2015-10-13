@@ -19,3 +19,13 @@ ubuntu/define-ubuntu-machine-types.patch
 qemu-vmdk-fix-next-cluster-sector-for-compressed-write-round-next-consecutive-sector.diff
 qemu-tcg-fix-mem-corruption-during-live-migration.diff
 qemu-tracing-vl-drop-g-mem-set-vtable-call.diff
+
+# vGICv3
+Merge-memory_region_init_reservation-into-memory_reg.patch
+hw-arm-gic-Kill-code-duplication.patch
+Introduce-gic_class_name-instead-of-repeating-condit.patch
+hw-intc-Implement-GIC-500-base-class.patch
+intc-gic-Extract-some-reusable-vGIC-code.patch
+arm_kvm-Do-not-assume-particular-GIC-type-in-kvm_arc.patch
+hw-intc-Initial-implementation-of-vGICv3.patch
+hw-arm-virt-Add-gic-version-option-to-virt-machine.patch
